@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *******************************************************************************/
- 
+'use strict'
+
 var app = require('./test_app');
 var appmetrics = app.start();
 var monitor = app.appmetrics.monitor();
+var semver = require('semver');
 app.appmetrics.enable("profiling");
 
 var tap = require('tap');
@@ -221,13 +223,18 @@ monitor.once('initialized', function() {
 function runCommonEnvTests(commonEnvData, t) {
 
   var ARCHS = ['x86', 'x86_64', 'ppc32', 'ppc64', 'ppc64le', 's390', 's390x'];
-  var OSES = ['AIX', 'Linux', 'Windows 7', 'Mac OS X'];
+  var OSES = ['AIX', 'Linux', 'Windows', 'Mac OS X'];
 
   t.ok(ARCHS.indexOf(commonEnvData['os.arch']) != -1,
        "Contains a recognised value for os.arch");
 
-  t.ok(OSES.indexOf(commonEnvData['os.name']) != -1,
-       "Contains a recognised value for os.name");
+  var found = false;
+  for (var entry in OSES) {
+    if ((commonEnvData['os.name']).indexOf(OSES[entry]) > -1) {
+      found = true;
+    }
+  }
+  t.ok(found, "Contains a recognised value for os.name");
 
   t.match(commonEnvData['os.version'],/\S/,
           "os.version isn't empty");
@@ -322,8 +329,7 @@ function runNodeEnvTests(nodeEnvData, t) {
                                          t.ok(parseInt(nodeEnvData['max.old.space.size']) > 0,
                                               "max.old.space.size is positive");
 
-                                              var nodeVersion = Number(process.version.match(/^v(\d+\.\d+)/)[1]);
-                                              if(nodeVersion >= 6.5) { // issue 283
+                                              if(semver.gt(process.version, '6.5.0')) { // issue 283
                                                 t.ok(2*parseInt(nodeEnvData['max.semi.space.size']) + parseInt(nodeEnvData['max.old.space.size']) === parseInt(nodeEnvData['heap.size.limit']),
                                                      'Values for max.old.space.size and max.semi.space.size match heap.size.limit');
                                               } else {

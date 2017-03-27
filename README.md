@@ -17,7 +17,6 @@ Node Application Metrics provides the following built-in data collection sources
  Memory             | Process and system memory usage
  GC                 | Node/V8 garbage collection statistics
  Event Loop         | Event loop latency information
- Express            | Express 4.x Web Framework application request monitoring
  Loop               | Event loop timing metrics
  Function profiling | Node/V8 function profiling (disabled by default)
  HTTP               | HTTP request calls made of the application
@@ -61,11 +60,11 @@ The Node Application Metrics agent supports the following runtime environments:
   * 64-bit or 32-bit runtime on AIX (PPC32, PPC64)
   * 64-bit runtime on Mac OS X (x64)
 
-<a name="install"></a>
 ### Installation
+
 Node Application Metrics can be installed using **npm** either locally or globally.
 
-**When installed locally** you can access monitoring data via both the API and the Health Center client by modifying your application to use appmetrics (see *[Modifying your application to use the local installation](#run-local)*).
+**When installed locally** you can access monitoring data via both the API and the Health Center client by modifying your application to use appmetrics (see *[Modifying your application to use the local installation](#modifying-your-application-to-use-the-local-installation)*).
 
 To perform a local install:
 ```sh
@@ -73,7 +72,7 @@ $ npm install appmetrics
 ```
 A local install will put the module inside "*`./node_modules` of the current package root*" (see the [npm documentation][4] for more information); usually this is the current directory and in that case the module installation directory will be `./node_modules/appmetrics`.
 
-**When installed globally** you can access monitoring data via the Health Center client (but not the API) by using the `node-hc` command-line utility (see *[The `node-hc` command](#run-global)*).
+**When installed globally** you can access monitoring data via the Health Center client (but not the API) by using the `node-hc` command-line utility (see *[The `node-hc` command](#the-node-hc-command)*).
 
 To perform a global install:
 ```sh
@@ -95,12 +94,11 @@ It also adds the `node-hc` command to another directory tied to your Node.js SDK
 * On other platforms:
   * `<node_install_directory>/bin`
 
-<a name="config"></a>
 ### Configuring Node Application Metrics
 
 Node Application Metrics can be configured in two ways, by using the configuration file described below or via a call to configure(options).
 
-Node Application Metrics comes with a configuration file inside the [module installation directory](#install) (`.../node_modules/appmetrics/appmetrics.properties`). This can be used to configure connection options, logging and data source options. 
+Node Application Metrics comes with a configuration file inside the [module installation directory](#installation) (`.../node_modules/appmetrics/appmetrics.properties`). This can be used to configure connection options, logging and data source options. 
 
 Node Application Metrics will attempt to load `appmetrics.properties` from one of the following locations (in order):
 
@@ -118,9 +116,9 @@ The following options are specific to appmetrics:
   Specifies whether method profiling data will be captured. The default value is `off`.  This specifies the value at start-up; it can be enabled and disabled dynamically as the application runs, either by a monitoring client or the API. 
 
 ## Running Node Application Metrics
-<a name="run-global"></a>
+
 ### The `node-hc` command
-If you [globally installed](#install) this module with npm, you can use the `node-hc` command to run your application instead of the `node` command. This will run your application as it would normally under node (including any node options) but additionally load and start `appmetrics`.
+If you [globally installed](#installation) this module with npm, you can use the `node-hc` command to run your application instead of the `node` command. This will run your application as it would normally under node (including any node options) but additionally load and start `appmetrics`.
 
 ```sh
 $ node-hc app.js
@@ -128,9 +126,8 @@ $ node-hc app.js
 
 The purpose of this mode of operation is to provide monitoring of the application without requiring any changes to the application code. The data is sent to the Health Center Eclipse IDE client.
 
-<a name="run-local"></a>
 ### Modifying your application to use the local installation
-If you [locally install](#install) this module with npm then you will additionally have access to the monitoring data via the `appmetrics` API (see *[API Documentation](#api-doc)*).
+If you [locally install](#installation) this module with npm then you will additionally have access to the monitoring data via the `appmetrics` API (see *[API Documentation](#api-documentation)*).
 
 To load `appmetrics` and get the monitoring API object, add the following to the start-up code for your application:
 ```js
@@ -163,11 +160,10 @@ monitoring.on('cpu', function (cpu) {
 ### Connecting to the client
 Connecting to the Health Center client requires the additional installation of a MQTT broker. The Node Application Metrics agent sends data to the MQTT broker specified in the `appmetrics.properties` file or set via a call to configure(options). Installation and configuration documentation for the Health Center client is available from the [Health Center documentation in IBM Knowledge Center][2].
 
-Note that both the API and the Health Center client can be used at the same time and will receive the same data. Use of the API requires a local install and application modification (see *[Modifying your application to use the local installation](#run-local)*).
+Note that both the API and the Health Center client can be used at the same time and will receive the same data. Use of the API requires a local install and application modification (see *[Modifying your application to use the local installation](#modifying-your-application-to-use-the-local-installation)*).
 
 Further information regarding the use of the Health Center client with Node Application Metrics can be found on the [appmetrics wiki][3]: [Using Node Application Metrics with the Health Center client](https://github.com/RuntimeTools/appmetrics/wiki/Using-Node-Application-Metrics-with-the-Health-Center-client).
 
-<a name="api-doc"></a>
 ## API Documentation
 ### appmetrics.configure(options)
 Sets various properties on the appmetrics monitoring agent. If the agent has already been started, this function does nothing. 
@@ -189,17 +185,16 @@ Starts the appmetrics monitoring agent. If the agent is already running this fun
 Stops the appmetrics monitoring agent. If the agent is not running this function does nothing.
 
 ### appmetrics.enable(`type`, `config`)
-Enable data generation of the specified data type.
-* `type` (String) the type of event to start generating data for. Values of `eventloop`, `express`, `profiling`, `http`, `http-outbound`, `mongo`, `socketio`, `mqlight`, `postgresql`, `mqtt`, `mysql`, `redis`, `riak`, `memcached`, `oracledb`, `oracle`, `strong-oracle`, `requests` and `trace` are currently supported. As `trace` is added to request data, both `requests` and `trace` must be enabled in order to receive trace data.
-* `config` (Object) (optional) configuration map to be added for the data type being enabled. (see *[setConfig](#set-config)*) for more information.
+Enable data generation of the specified data type. Cannot be called until the agent has been started by calling `start()` or `monitor()`.
+* `type` (String) the type of event to start generating data for. Values of `eventloop`, `profiling`, `http`, `http-outbound`, `mongo`, `socketio`, `mqlight`, `postgresql`, `mqtt`, `mysql`, `redis`, `riak`, `memcached`, `oracledb`, `oracle`, `strong-oracle`, `requests` and `trace` are currently supported. As `trace` is added to request data, both `requests` and `trace` must be enabled in order to receive trace data.
+* `config` (Object) (optional) configuration map to be added for the data type being enabled. (see *[setConfig](#appmetricssetconfigtype-config)*) for more information.
 
 The following data types are disabled by default: `profiling`, `requests`, `trace`
 
 ### appmetrics.disable(`type`)
-Disable data generation of the specified data type.
-* `type` (String) the type of event to stop generating data for. Values of `eventloop`, `express`, `profiling`, `http`, `mongo`, `socketio`, `mqlight`, `postgresql`, `mqtt`, `mysql`, `redis`, `riak`, `memcached`, `oracledb`, `oracle`, `strong-oracle`, `requests` and `trace` are currently supported.
+Disable data generation of the specified data type. Cannot be called until the agent has been started by calling `start()` or `monitor()`.
+* `type` (String) the type of event to stop generating data for. Values of `eventloop`, `profiling`, `http`, `mongo`, `socketio`, `mqlight`, `postgresql`, `mqtt`, `mysql`, `redis`, `riak`, `memcached`, `oracledb`, `oracle`, `strong-oracle`, `requests` and `trace` are currently supported.
 
-<a name="set-config"></a>
 ### appmetrics.setConfig(`type`, `config`)
 Set the configuration to be applied to a specific data type. The configuration available is specific to the data type.
 * `type` (String) the type of event to apply the configuration to.
@@ -236,19 +231,13 @@ Emitted when a CPU monitoring sample is taken.
     * `process` (Number) the percentage of CPU used by the Node.js application itself. This is a value between 0.0 and 1.0.
     * `system` (Number) the percentage of CPU used by the system as a whole. This is a value between 0.0 and 1.0.
 
-### Event: 'memory'
-Emitted when a memory monitoring sample is taken.
-* `data` (Object) the data from the memory sample:
-    * `time` (Number) the milliseconds when the sample was taken. This can be converted to a Date using `new Date(data.time)`.
-    * `physical_total` (Number) the total amount of RAM available on the system in bytes.
-    * `physical_used` (Number) the total amount of RAM in use on the system in bytes.
-    * `physical_free` (Number) the total amount of free RAM available on the system in bytes.
-    * `virtual` (Number) the memory address space used by the Node.js application in bytes.
-    * `private` (Number) the amount of memory used by the Node.js application that cannot be shared with other processes, in bytes.
-    * `physical` (Number) the amount of RAM used by the Node.js application in bytes.
-
-### Event: 'initialized'
-Emitted when all possible environment variables have been collected. Use `appmetrics.monitor.getEnvironment()` to access the available environment variables.
+### Event: 'eventloop'
+Emitted every 5 seconds, summarising sample based information of the event loop latency
+* `data` (Object) the data from the event loop sample:
+    * `time` (Number) the milliseconds when the event was emitted. This can be converted to a Date using `new Date(data.time)`.
+    * `latency.min` (Number) the shortest sampled latency, in milliseconds.
+    * `latency.max` (Number) the longest sampled latency, in milliseconds.
+    * `latency.avg` (Number) the average sampled latency, in milliseconds.
 
 ### Event: 'gc'
 Emitted when a garbage collection (GC) cycle occurs in the underlying V8 runtime.
@@ -259,13 +248,8 @@ Emitted when a garbage collection (GC) cycle occurs in the underlying V8 runtime
     * `used` (Number) the amount of memory used on the JavaScript heap in bytes.
     * `duration` (Number) the duration of the GC cycle in milliseconds.
 
-### Event: 'eventloop'
-Emitted every 5 seconds, summarising sample based information of the event loop latency
-* `data` (Object) the data from the event loop sample:
-    * `time` (Number) the milliseconds when the event was emitted. This can be converted to a Date using `new Date(data.time)`.
-    * `latency.min` (Number) the shortest sampled latency, in milliseconds.
-    * `latency.max` (Number) the longest sampled latency, in milliseconds.
-    * `latency.avg` (Number) the average sampled latency, in milliseconds.
+### Event: 'initialized'
+Emitted when all possible environment variables have been collected. Use `appmetrics.monitor.getEnvironment()` to access the available environment variables.
 
 ### Event: 'loop'
 Emitted every 60 seconds, summarising event tick information in time interval
@@ -274,6 +258,17 @@ Emitted every 60 seconds, summarising event tick information in time interval
     * `minimum` (Number) the shortest (i.e. fastest) tick in milliseconds.
     * `maximum` (Number) the longest (slowest) tick in milliseconds.
     * `average` (Number) the average tick time in milliseconds.
+
+### Event: 'memory'
+Emitted when a memory monitoring sample is taken.
+* `data` (Object) the data from the memory sample:
+    * `time` (Number) the milliseconds when the sample was taken. This can be converted to a Date using `new Date(data.time)`.
+    * `physical_total` (Number) the total amount of RAM available on the system in bytes.
+    * `physical_used` (Number) the total amount of RAM in use on the system in bytes.
+    * `physical_free` (Number) the total amount of free RAM available on the system in bytes.
+    * `virtual` (Number) the memory address space used by the Node.js application in bytes.
+    * `private` (Number) the amount of memory used by the Node.js application that cannot be shared with other processes, in bytes.
+    * `physical` (Number) the amount of RAM used by the Node.js application in bytes.
 
 ### Event: 'profiling'
 Emitted when a profiling sample is available from the underlying V8 runtime.
@@ -287,6 +282,8 @@ Emitted when a profiling sample is available from the underlying V8 runtime.
         * `line` (Number) the line number in the file.
         * `count` (Number) the number of samples for this function.
 
+## API: Dependency Events (probes)
+
 ### Event: 'http'
 Emitted when a HTTP request is made of the application.
 * `data` (Object) the data from the HTTP request:
@@ -294,8 +291,9 @@ Emitted when a HTTP request is made of the application.
     * `method` (String) the HTTP method used for the request.
     * `url` (String) the URL on which the request was made.
     * `duration` (Number) the time taken for the HTTP request to be responded to in ms.
-    * `header` (String) the header for the HTTP request.
+    * `header` (String) the response header for the HTTP request.
     * `contentType` (String) the content type of the HTTP request.
+    * `requestHeader` (Object) the request header for HTTP request.
 
 ### Event: 'http-outbound'
 Emitted when the application makes an outbound HTTP request.
@@ -306,21 +304,25 @@ Emitted when the application makes an outbound HTTP request.
     * `contentType` (String) the HTTP response content-type.
     * `statusCode` (String) the HTTP response status code.
     * `duration` (Number) the time taken for the HTTP request to be responded to in ms.
+    * 'requestHeaders' (Object) the HTTP request headers.
 
-### Event: 'socketio'
-Emitted when WebSocket data is sent or received by the application using socketio.
-* `data` (Object) the data from the socket.io request:
-    * `time` (Number) the milliseconds when the event occurred. This can be converted to a Date using `new Date(data.time)`.
-    * `method` (String) whether the event is a `broadcast` or `emit` from the application, or a `receive` from a client  .
-    * `event` (String) the name used for the event.
-    * `duration` (Number) the time taken for event to be sent or for a received event to be handled.
+### Event: 'leveldown'
+Emitted when a LevelDB query is made using the `leveldown` module.
+* `data` (Object) the data from the LevelDB query:
+    * `time` (Number) the time in milliseconds when the LevelDB query was made. This can be converted to a Date using `new Date(data.time)`.
+    * `method` (String) The leveldown method being used.
+    * `key` (Object) The key being used for a call to `get`, `put` or `del` (Undefined for other methods)
+    * `value` (Object) The value being added to the LevelDB database using the `put` method (Undefined for other methods) 
+    * `opCount` (Number) The number of operations carried out by a `batch` method (Undefined for other methods) 
+    * `duration` (Number) the time taken for the LevelDB query to be responded to in ms.
 
-### Event: 'mysql'
-Emitted when a MySQL query is made using the `mysql` module.
-* `data` (Object) the data from the MySQL query:
-    * `time` (Number) the milliseconds when the MySQL query was made. This can be converted to a Date using `new Date(data.time)`.
-    * `query` (String) the query made of the MySQL database.
-    * `duration` (Number) the time taken for the MySQL query to be responded to in ms.
+### Event: 'memcached'
+Emitted when a data is stored, retrieved or modified in Memcached using the `memcached` module.
+* `data` (Object) the data from the memcached event:
+    * `time` (Number) the milliseconds when the memcached event occurred. This can be converted to a Date using `new Date(data.time)`
+    * `method` (String) the method used in the memcached client, eg `set`, `get`, `append`, `delete`, etc.
+    * `key` (String) the key associated with the data.
+    * `duration` (Number) the time taken for the operation on the memcached data to occur.
 
 ### Event: 'mongo'
 Emitted when a MongoDB query is made using the `mongodb` module.
@@ -330,15 +332,6 @@ Emitted when a MongoDB query is made using the `mongodb` module.
     * `duration` (Number) the time taken for the MongoDB query to be responded to in ms.
     * `method` (String) the executed method for the query, such as find, update.
     * `collection` (String) the MongoDB collection name.
-
-### Event: 'mqtt'
-Emitted when a MQTT message is sent or received.
-* `data` (Object) the data from the MQTT event:
-    * `time` (Number) the time in milliseconds when the MQTT event occurred. This can be converted to a Date using new Date(data.time).
-    * `method` (String) the name of the call or event (will be one of 'publish' or 'message').
-    * `topic` (String) the topic on which a message is published or received.
-    * `qos` (Number) the QoS level for the message.
-    * `duration` (Number) the time taken in milliseconds.
 
 ### Event: 'mqlight'
 Emitted when a MQLight message is sent or received.
@@ -351,15 +344,42 @@ Emitted when a MQLight message is sent or received.
     * `qos` (Number) the QoS level for a 'send' call, undefined if not set.
     * `duration` (Number) the time taken in milliseconds.
 
-### Event: 'leveldown'
-Emitted when a LevelDB query is made using the `leveldown` module.
-* `data` (Object) the data from the LevelDB query:
-    * `time` (Number) the time in milliseconds when the LevelDB query was made. This can be converted to a Date using `new Date(data.time)`.
-    * `method` (String) The leveldown method being used.
-    * `key` (Object) The key being used for a call to `get`, `put` or `del` (Undefined for other methods)
-    * `value` (Object) The value being added to the LevelDB database using the `put` method (Undefined for other methods) 
-    * `opCount` (Number) The number of operations carried out by a `batch` method (Undefined for other methods) 
-    * `duration` (Number) the time taken for the LevelDB query to be responded to in ms.
+### Event: 'mqtt'
+Emitted when a MQTT message is sent or received.
+* `data` (Object) the data from the MQTT event:
+    * `time` (Number) the time in milliseconds when the MQTT event occurred. This can be converted to a Date using new Date(data.time).
+    * `method` (String) the name of the call or event (will be one of 'publish' or 'message').
+    * `topic` (String) the topic on which a message is published or received.
+    * `qos` (Number) the QoS level for the message.
+    * `duration` (Number) the time taken in milliseconds.
+
+### Event: 'mysql'
+Emitted when a MySQL query is made using the `mysql` module.
+* `data` (Object) the data from the MySQL query:
+    * `time` (Number) the milliseconds when the MySQL query was made. This can be converted to a Date using `new Date(data.time)`.
+    * `query` (String) the query made of the MySQL database.
+    * `duration` (Number) the time taken for the MySQL query to be responded to in ms.
+
+### Event: 'oracle'
+Emitted when a query is executed using the `oracle` module.
+* `data` (Object) the data from the Oracle query:
+    * `time` (Number) the milliseconds when the Oracle query was made. This can be converted to a Date using `new Date(data.time)`.
+    * `query` (String) the query made of the Oracle database.
+    * `duration` (Number) the time taken for the Oracle query to be responded to in ms.
+
+### Event: 'oracledb'
+Emitted when a query is executed using the `oracledb` module.
+* `data` (Object) the data from the OracleDB query:
+    * `time` (Number) the milliseconds when the OracleDB query was made. This can be converted to a Date using `new Date(data.time)`.
+    * `query` (String) the query made of the OracleDB database.
+    * `duration` (Number) the time taken for the OracleDB query to be responded to in ms.
+
+### Event: 'postgres'
+Emitted when a PostgreSQL query is made to the `pg` module.
+* `data` (Object) the data from the PostgreSQL query:
+    * `time` (Number) the milliseconds when the PostgreSQL query was made. This can be converted to a Date using `new Date(data.time)`.
+    * `query` (String) the query made of the PostgreSQL database.
+    * `duration` (Number) the time taken for the PostgreSQL query to be responded to in ms.
 
 ### Event: 'redis'
 Emitted when a Redis command is sent.
@@ -378,27 +398,13 @@ Emitted when a Riak method is called using the `basho-riak-client` module.
     * `query` (String) the query parameter used in the `mapReduce` method.
     * `duration` (Number) the time taken in milliseconds.
 
-### Event: 'memcached'
-Emitted when a data is stored, retrieved or modified in Memcached using the `memcached` module.
-* `data` (Object) the data from the memcached event:
-    * `time` (Number) the milliseconds when the memcached event occurred. This can be converted to a Date using `new Date(data.time)`
-    * `method` (String) the method used in the memcached client, eg `set`, `get`, `append`, `delete`, etc.
-    * `key` (String) the key associated with the data.
-    * `duration` (Number) the time taken for the operation on the memcached data to occur.
-
-### Event: 'oracledb'
-Emitted when a query is executed using the `oracledb` module.
-* `data` (Object) the data from the OracleDB query:
-    * `time` (Number) the milliseconds when the OracleDB query was made. This can be converted to a Date using `new Date(data.time)`.
-    * `query` (String) the query made of the OracleDB database.
-    * `duration` (Number) the time taken for the OracleDB query to be responded to in ms.
-
-### Event: 'oracle'
-Emitted when a query is executed using the `oracle` module.
-* `data` (Object) the data from the Oracle query:
-    * `time` (Number) the milliseconds when the Oracle query was made. This can be converted to a Date using `new Date(data.time)`.
-    * `query` (String) the query made of the Oracle database.
-    * `duration` (Number) the time taken for the Oracle query to be responded to in ms.
+### Event: 'socketio'
+Emitted when WebSocket data is sent or received by the application using socketio.
+* `data` (Object) the data from the socket.io request:
+    * `time` (Number) the milliseconds when the event occurred. This can be converted to a Date using `new Date(data.time)`.
+    * `method` (String) whether the event is a `broadcast` or `emit` from the application, or a `receive` from a client  .
+    * `event` (String) the name used for the event.
+    * `duration` (Number) the time taken for event to be sent or for a received event to be handled.
 
 ### Event: 'strong-oracle'
 Emitted when a query is executed using the `strong-oracle` module.
@@ -406,36 +412,23 @@ Emitted when a query is executed using the `strong-oracle` module.
     * `time` (Number) the milliseconds when the Strong Oracle query was made. This can be converted to a Date using `new Date(data.time)`.
     * `query` (String) the query made of the database.
     * `duration` (Number) the time taken for the Strong Oracle query to be responded to in ms.
+    
+## API: Requests
 
 ### Event: 'request'
-Emitted when a request is made of the application that involves one or more monitored application level events. Request events are disabled by default.
+Requests are a special type of event emitted by appmetrics.  All the probes named above can also create request events if requests are enabled.  Howver requests are nested within a root incoming request (usually http). Request events are disabled by default.
 * `data` (Object) the data from the request:
     * `time` (Number) the milliseconds when the request occurred. This can be converted to a Date using `new Date(data.time)`.
-    * `type` (String) The type of the request event. This can currently be set to 'HTTP' or 'DB'.
+    * `type` (String) The type of the request event. This is the name of the probe that sent the request data, e.g. `http`, `socketio` etc.
     * `name` (String) The name of the request event. This is the request task, eg. the url, or the method being used.
     * `request` (Object) the detailed data for the root request event:
-        * `type` (String) The type of the request event. This can currently be set to 'HTTP' or 'DB'.
+        * `type` (String) The type of the request event. This is the name of the probe that sent the request data, e.g. `http`, `socketio` etc.
         * `name` (String) The name of the request event. This is the request task, eg. the url, or the method being used.
-        * `context` (Object) A map of any additional context information for the request event.
+        * `context` (Object) Additional context data (usually contains the same data as the associated non-request metric event).
         * `stack` (String) An optional stack trace for the event call.
         * `children` (Array) An array of child request events that occurred as part of the overall request event. Child request events may include function trace entries, which will have a `type` of null.
         * `duration` (Number) the time taken for the request to complete in ms.
     * `duration` (Number) the time taken for the overall request to complete in ms.
-
-### Event: 'postgres'
-Emitted when a PostgreSQL query is made to the `pg` module.
-* `data` (Object) the data from the PostgreSQL query:
-    * `time` (Number) the milliseconds when the PostgreSQL query was made. This can be converted to a Date using `new Date(data.time)`.
-    * `query` (String) the query made of the PostgreSQL database.
-    * `duration` (Number) the time taken for the PostgreSQL query to be responded to in ms.
-
-### Event: 'express'
-Emitted when an express request finishes its response. Note. appmetrics has only been tested with express 4.x, support is not guaranteed for lower versions.
-* `data` (Object) the data from the Express request/response.
-    * `method` (String) The HTTP method for this request.
-    * `url` (String) The target URL for this request.
-    * `statusCode` (Number) The HTTP status code of the response.
-    * `duration` (Number) The time in ms between receiving the request and sending the response.
 
 ## Troubleshooting
 Find below some possible problem scenarios and corresponding diagnostic steps. Updates to troubleshooting information will be made available on the [appmetrics wiki][3]: [Troubleshooting](https://github.com/RuntimeTools/appmetrics/wiki/Troubleshooting). If these resources do not help you resolve the issue, you can open an issue on the Node Application Metrics [appmetrics issue tracker][5].
@@ -446,7 +439,7 @@ By default, a message similar to the following will be written to console output
 `[Fri Aug 21 09:36:58 2015] com.ibm.diagnostics.healthcenter.loader INFO: Node Application Metrics 1.0.1-201508210934 (Agent Core 3.0.5.201508210934)`
 
 ### Error "Conflicting appmetrics module was already loaded by node-hc. Try running with node instead." when using `node-hc`
-This error indicates you are using `node-hc` to run an application that uses the Node Application Metrics monitoring API (see *[Modifying your application to use the local installation](#run-local)*). Resolve this by using `node` to run the application instead. **Alternatively**, you could remove (or disable temporarily) the use of the Node Application Metrics monitoring API in your application.
+This error indicates you are using `node-hc` to run an application that uses the Node Application Metrics monitoring API (see *[Modifying your application to use the local installation](#modifying-your-application-to-use-the-local-installation)*). Resolve this by using `node` to run the application instead. **Alternatively**, you could remove (or disable temporarily) the use of the Node Application Metrics monitoring API in your application.
 
 This error was added to prevent the scenario where 2 instances of the agent can be accidentally created and started in parallel -- the globally installed one created by `node-hc` and the locally installed one created by the `require('appmetrics');` call in an application modified to use the Node Application Metrics monitoring API.
 
@@ -470,7 +463,7 @@ Check:
 * If you have an appropriate version of `libstdc++`installed, ensure it is on the system library path, or use a method (such as setting `LD_LIBRARY_PATH` environment variable on Linux, or LIBPATH environment variable on AIX) to add the library to the search path.
 
 ### No profiling data present for Node.js applications
-Method profiling data is not collected by default, check *[Configuring Node Application Metrics](#config)* for information on how to enable it.
+Method profiling data is not collected by default, check *[Configuring Node Application Metrics](#configuring-node-application-metrics)* for information on how to enable it.
 
 If collection is enabled, an absence of method profiling data from a Node.js application could be caused by the type of tasks that are being run by your application -- it may be running long, synchronous tasks that prevent collection events from being scheduled on the event loop.
 
@@ -492,7 +485,8 @@ Non-release versions of this project (for example on github.com/RuntimeTools/app
 3.0.0 development
 
 ## Release History
-`2.0.0` - Remove support for Node.js 0.10, 0.12, 5.  Add heapdump api call.  
+`3.0.0` - Remove express probe.  
+`2.0.1` - Remove support for Node.js 0.10, 0.12, 5.  Add heapdump api call.  
 `1.2.0` - Add file data collection capability and option configuration via api.  
 `1.1.2` - Update agent core to 3.0.10, support Node.js v7.  
 `1.1.1` - Fix node-gyp rebuild failure and don't force MQTT broker to on  

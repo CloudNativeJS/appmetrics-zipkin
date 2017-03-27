@@ -1,6 +1,7 @@
 {
   "name": "appmetrics",
   "version": "3.0.0",
+  "engines": { "node": ">=4" },
   "description": "Node Application Metrics",
   "bin": {
     "node-hc": "bin/appmetrics-cli.js"
@@ -15,11 +16,12 @@
   ],
   "devDependencies": {
     "node-gyp": "3.x",
+    "semver": "^5.3.0",
     "tap": "7.x"
   },
   "scripts": {
-    "test": "tap --reporter tap --timeout=120 tests/*tests.js tests/probes/http-outbound-probe-test.js tests/headless_test.js",
-    "install": "node-gyp rebuild"
+    "test": "tap --reporter tap --timeout=120 tests/*tests.js tests/probes/http-outbound-probe-test.js tests/probes/http-probe-test.js tests/headless_test.js",
+    "install": "node extract_all_binaries.js || node-gyp rebuild"
   },
   "directories": {
     "lib": "lib",

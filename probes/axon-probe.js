@@ -120,13 +120,15 @@ AxonProbe.prototype.attach = function(name, target) {
  *		duration:	the time for the request to respond
  */
 AxonProbe.prototype.metricsEnd = function(context, methodName, methodArgs, socketType) {
-	context.timer.stop();
-	// default to quality of service (qos) 0, as that's what the axon module does
-	if( isSendMethod(socketType) ) {
-		am.emit('axon', {time: context.timer.startTimeMillis, method: methodName, duration: context.timer.timeDelta, type: socketType})
-	} else {
-		am.emit('axon', {time: context.timer.startTimeMillis, event: methodName, duration: context.timer.timeDelta, type: socketType})
-	};
+    if(context && context.timer) {
+	    context.timer.stop();
+	    // default to quality of service (qos) 0, as that's what the axon module does
+	    if( isSendMethod(socketType) ) {
+		    am.emit('axon', {time: context.timer.startTimeMillis, method: methodName, duration: context.timer.timeDelta, type: socketType})
+	    } else {
+		    am.emit('axon', {time: context.timer.startTimeMillis, event: methodName, duration: context.timer.timeDelta, type: socketType})
+	    };
+    }
 };
 
 /*
@@ -134,14 +136,15 @@ AxonProbe.prototype.metricsEnd = function(context, methodName, methodArgs, socke
  */
 AxonProbe.prototype.requestStart = function (context, methodName, methodArgs) {
 	if (methodName === 'message') {
-		context.req = request.startRequest('AXON', methodName, true, context.timer);
+		context.req = request.startRequest('axon', methodName, true, context.timer);
 	} else {
-		context.req = request.startRequest('AXON', methodName, false, context.timer);
+		context.req = request.startRequest('axon', methodName, false, context.timer);
 	}
 };
 
 AxonProbe.prototype.requestEnd = function (context, methodName, methodArgs) {
-	context.req.stop({topic: methodArgs[0]});
+    if(context && context.req)
+	    context.req.stop({topic: methodArgs[0]});
 };
 
 module.exports = AxonProbe;

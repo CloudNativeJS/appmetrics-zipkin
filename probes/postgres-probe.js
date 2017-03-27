@@ -113,20 +113,23 @@ function monitorQuery(client,that) {
  *      duration:   the time for the request to respond
  */
 PostgresProbe.prototype.metricsEnd = function(probeData, method, methodArgs) {
-  probeData.timer.stop();
-  am.emit('postgres', {time: probeData.timer.startTimeMillis, query: methodArgs[0], duration: probeData.timer.timeDelta});
+  if(probeData && probeData.timer) {
+    probeData.timer.stop();
+    am.emit('postgres', {time: probeData.timer.startTimeMillis, query: methodArgs[0], duration: probeData.timer.timeDelta});
+  }
 };
 
 /*
  * Heavyweight request probes for Postgres queries
  */
 PostgresProbe.prototype.requestStart = function (probeData, target, method, methodArgs) {
-  probeData.req = request.startRequest( 'DB', "query", false, probeData.timer );
+  probeData.req = request.startRequest( 'postgres', "query", false, probeData.timer );
   probeData.req.setContext({sql: methodArgs[0]});
 };
 
 PostgresProbe.prototype.requestEnd = function (probeData, method, methodArgs) {
-  probeData.req.stop({sql: methodArgs[0]});
+  if(probeData && probeData.req)
+    probeData.req.stop({sql: methodArgs[0]});
 };
 
 module.exports = PostgresProbe;

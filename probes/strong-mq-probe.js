@@ -117,15 +117,17 @@ Strong_MQProbe.prototype.attach = function(name, target) {
  *		duration:	the time for the request to respond
  */
 Strong_MQProbe.prototype.metricsEnd = function(context, methodName, methodArgs, eventType) {
-	context.timer.stop();
-	// default to quality of service (qos) 0, as that's what the strong-mq module does
-	var eventData ={time: context.timer.startTimeMillis, duration: context.timer.timeDelta, type: eventType}
-	if( methodName == 'publish') {
-		eventData.method = methodName;
-	} else {
-		eventData.event = 'message';
-	}
-	am.emit('strong-mq', eventData);
+    if(context && context.timer) {
+	    context.timer.stop();
+	    // default to quality of service (qos) 0, as that's what the strong-mq module does
+	    var eventData ={time: context.timer.startTimeMillis, duration: context.timer.timeDelta, type: eventType}
+	    if( methodName == 'publish') {
+		    eventData.method = methodName;
+	    } else {
+		    eventData.event = 'message';
+	    }
+	    am.emit('strong-mq', eventData);
+    }
 };
 
 /*
@@ -133,15 +135,16 @@ Strong_MQProbe.prototype.metricsEnd = function(context, methodName, methodArgs, 
  */
 Strong_MQProbe.prototype.requestStart = function (context, methodName, methodArgs, socketType) {
 	if (methodName === 'publish') {
-		context.req = request.startRequest('STRONG-MQ', methodName, false, context.timer);
+		context.req = request.startRequest('strong-mq', methodName, false, context.timer);
 	} else {
 		/* Received messages mark the start of requests. */
-		context.req = request.startRequest('STRONG-MQ', 'message', true, context.timer);
+		context.req = request.startRequest('strong-mq', 'message', true, context.timer);
 	}
 };
 
 Strong_MQProbe.prototype.requestEnd = function (context, methodName, methodArgs, socketType) {
-	context.req.stop({topic: methodArgs[0]});
+    if(context && context.req)
+	    context.req.stop({topic: methodArgs[0]});
 };
 
 module.exports = Strong_MQProbe;

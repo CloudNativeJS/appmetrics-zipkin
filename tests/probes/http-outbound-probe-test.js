@@ -21,7 +21,7 @@ var http = require('http');
 
 var tap = require('tap');
 
-tap.plan(2);
+tap.plan(3);
 
 tap.tearDown(function() {
     server.close();
@@ -30,7 +30,7 @@ tap.tearDown(function() {
 var completedTests = 0;
 
 monitor.on('http-outbound', function(data) {
-    if (completedTests < 2) {
+    if (completedTests < 3) {
         tap.test("HTTP Outbound Event", function(t) {
             checkHttpOutboundData(data, t);
             t.end();
@@ -44,8 +44,12 @@ function checkHttpOutboundData(data, t) {
      "Timestamp is an integer");
     t.equals(data.method, "GET",
         "Should report GET as HTTP request method");
-    t.equals(data.url, "http://localhost:8000",
-        "Should report http://localhost:8000 as URL");
+    t.equals(data.url, "http://localhost:8000/",
+        "Should report http://localhost:8000/ as URL");
+    if (data.requestHeaders) {
+        t.equals(data.requestHeaders.hello, "world",
+            "Should report world as value of hello header");
+    }
 }
 
 function isInteger(n) {
@@ -56,9 +60,20 @@ function isNumeric(n) {
     return !isNaN(parseFloat(n)) && isFinite(n);
 }
 
+var options = {
+    host: "localhost",
+    port: 8000,
+    headers: {
+        hello: "world"
+    }
+}
+
 // Request with a callback
-http.get('http://localhost:8000', function (res) {});
+http.get('http://localhost:8000/', function (res) {});
 
 // Request without a callback
-http.get('http://localhost:8000')
+http.get('http://localhost:8000/')
+
+// Request with headers
+http.request(options).end()
 
