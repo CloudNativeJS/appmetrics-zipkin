@@ -2,11 +2,16 @@
 Node Application Metrics monitoring and profiling agent
 
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/8caec03a401f4a37823ac547d7a0a272)](https://www.codacy.com/app/dancunnington/appmetrics?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=RuntimeTools/appmetrics&amp;utm_campaign=Badge_Grade)
+[![Build Status](https://travis-ci.org/RuntimeTools/appmetrics.svg?branch=master)](https://travis-ci.org/RuntimeTools/appmetrics)
+[![codebeat badge](https://codebeat.co/badges/9e9229c4-dcfa-4a98-a9a2-4770f3a2dd59)](https://codebeat.co/projects/github-com-runtimetools-appmetrics-master)
+[![codecov.io](https://codecov.io/github/RuntimeTools/appmetrics/coverage.svg?branch=master)](https://codecov.io/github/RuntimeTools/appmetrics?branch=master)
+![Apache 2](https://img.shields.io/badge/license-Apache2-blue.svg?style=flat)
+[![Homepage](https://img.shields.io/badge/homepage-Node%20Application%20Metrics-blue.svg)](https://developer.ibm.com/node/monitoring-post-mortem/application-metrics-node-js/)
 
 Node Application Metrics instruments the Node.js runtime for performance monitoring, providing the monitoring data via an API. 
-Additionally the data can be visualized in an Eclipse IDE using the [IBM Monitoring and Diagnostics Tools - Health Center][1] client.
+Additionally the data can be visualized by using the [Node Application Metrics Dashboard](https://github.com/RuntimeTools/appmetrics-dash). 
 
-See https://www.ibm.com/developerworks/java/jdk/tools/healthcenter/ for more details.
+The data can also be visualized in Eclipse using the [IBM Monitoring and Diagnostics Tools - Health Center][1] client. Profiling data is available in Health Center, but is not yet available in the Dashboard. See https://www.ibm.com/developerworks/java/jdk/tools/healthcenter/ for more details.
 
 Node Application Metrics provides the following built-in data collection sources:
 
@@ -62,7 +67,13 @@ The Node Application Metrics agent supports the following runtime environments:
 
 ### Installation
 
-Node Application Metrics can be installed using **npm** either locally or globally.
+You can get Node Application Metrics from 3 different places:
+
+  * npmjs.org (install by running `npm install appmetrics`. Native libraries are prebuilt)
+  * Github ([install from source](https://github.com/RuntimeTools/appmetrics/wiki/Install-direct-from-github-source) by cloning the git repository. Requires a compiler)
+  * [IBM SDK for Node.js](https://developer.ibm.com/node/sdk/) (packaged with the SDK, native libraries are prebuilt)
+
+Using **npm** you can install Node Application Metrics either locally or globally.
 
 **When installed locally** you can access monitoring data via both the API and the Health Center client by modifying your application to use appmetrics (see *[Modifying your application to use the local installation](#modifying-your-application-to-use-the-local-installation)*).
 
@@ -315,6 +326,13 @@ Emitted when a LevelDB query is made using the `leveldown` module.
     * `value` (Object) The value being added to the LevelDB database using the `put` method (Undefined for other methods) 
     * `opCount` (Number) The number of operations carried out by a `batch` method (Undefined for other methods) 
     * `duration` (Number) the time taken for the LevelDB query to be responded to in ms.
+    
+### Event: 'loopback-datasource-juggler'
+Emitted when a function is called on the `loopback-datasource-juggler` module
+* `data` (Object) the data from the loopback-datasource-juggler event:
+    * `time` (Number) the time in milliseconds when the event occurred. This can be converted to a Date using `new Date(data.time)`
+    * `method` (String) the function the juggler has executed
+    * `duration` (Number) the time taken for the operation to complete.
 
 ### Event: 'memcached'
 Emitted when a data is stored, retrieved or modified in Memcached using the `memcached` module.
@@ -482,10 +500,11 @@ The npm package for this project uses a semver-parsable X.0.Z version number for
 Non-release versions of this project (for example on github.com/RuntimeTools/appmetrics) will use semver-parsable X.0.Z-dev.B version numbers, where X.0.Z is the last release with Z incremented and B is an integer. For further information on the development process go to the  [appmetrics wiki][3]: [Developing](https://github.com/RuntimeTools/appmetrics/wiki/Developing).
 
 ## Version
-3.0.0 development
+3.0.2-development
 
 ## Release History
-`3.0.0` - Remove express probe.  
+`3.0.1` - Packaging bug fix to allow build from source if binary not present.  
+`3.0.0` - Remove express probe. Additional data available in http and request events. Code improvements.  
 `2.0.1` - Remove support for Node.js 0.10, 0.12, 5.  Add heapdump api call.  
 `1.2.0` - Add file data collection capability and option configuration via api.  
 `1.1.2` - Update agent core to 3.0.10, support Node.js v7.  

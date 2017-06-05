@@ -1,6 +1,6 @@
 {
   "name": "appmetrics",
-  "version": "3.0.0",
+  "version": "3.0.2",
   "engines": { "node": ">=4" },
   "description": "Node Application Metrics",
   "bin": {
@@ -9,18 +9,20 @@
   "dependencies": {
     "nan": "2.x",
     "tar": "2.x",
+    "semver": "^5.3.0",
     "jszip": "2.5.x"
   },
   "bundleDependencies": [
     "tar"
   ],
   "devDependencies": {
+    "codecov": "2.x",
     "node-gyp": "3.x",
-    "semver": "^5.3.0",
     "tap": "7.x"
   },
   "scripts": {
-    "test": "tap --reporter tap --timeout=120 tests/*tests.js tests/probes/http-outbound-probe-test.js tests/probes/http-probe-test.js tests/headless_test.js",
+    "test": "tap --reporter tap --timeout=120 tests/*tests.js tests/probes/http-outbound-probe-test.js tests/probes/http-probe-test.js tests/headless_test.js --coverage",
+    "posttest": "tap --coverage-report=lcov && codecov",
     "install": "node extract_all_binaries.js || node-gyp rebuild"
   },
   "directories": {

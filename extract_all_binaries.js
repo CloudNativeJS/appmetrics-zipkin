@@ -38,8 +38,8 @@ var AGENTCORE_PLATFORMS = ['aix-ppc',
                            'linux-x64',
                            'win32-ia32',
                            'win32-x64'];
-var AGENTCORE_VERSION = "3.2.0";
-var APPMETRICS_VERSION = "3.0.0";
+var AGENTCORE_VERSION = "3.2.1";
+var APPMETRICS_VERSION = "3.0.2";
 
 var LOG_FILE = path.join(INSTALL_DIR, 'install.log');
 var logFileStream = fs.createWriteStream(LOG_FILE, {flags : 'a'});
@@ -111,6 +111,9 @@ var getSupportedNodeVersionOrExit = function() {
 	}
 	if (process.version.indexOf('v7') === 0) {
 		return '7';
+	}
+	if (process.version.indexOf('v8') === 0) {
+		return '8';
 	}
 	console.log('Unsupported version ' + process.version + '. Trying rebuild.');
   fail();
