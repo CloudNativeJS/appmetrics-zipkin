@@ -128,11 +128,11 @@ static unsigned long long GetRealTime() {
 }
 #endif
 
-void beforeGC(GCType type, GCCallbackFlags flags) {
+void beforeGC(v8::Isolate *isolate, GCType type, GCCallbackFlags flags) {
 	plugin::timingOK = GetSteadyTime(&plugin::gcSteadyStart);
 }
 
-void afterGC(GCType type, GCCallbackFlags flags) {
+void afterGC(v8::Isolate *isolate, GCType type, GCCallbackFlags flags) {
 	unsigned long long gcRealEnd;
 	
 	// GC pause time
@@ -188,7 +188,7 @@ pushsource* createPushSource(uint32 srcid, const char* name) {
 extern "C" {
 	NODEGCPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(agentCoreFunctions api, uint32 provID) {
 	    plugin::api = api;
-	    plugin::api.logMessage(debug, "[gc_node] Registering push sources");
+	    plugin::api.logMessage(loggingLevel::debug, "[gc_node] Registering push sources");
 	
 	    pushsource *head = createPushSource(0, "gc_node");
 	    plugin::provid = provID;
@@ -201,12 +201,12 @@ extern "C" {
 	
 	NODEGCPLUGIN_DECL int ibmras_monitoring_plugin_start() {
 		plugin::api.logMessage(fine, "[gc_node] Starting");
-	
-		V8::AddGCPrologueCallback(beforeGC);
-		V8::AddGCEpilogueCallback(afterGC);
+
+		v8::Isolate::GetCurrent()->AddGCPrologueCallback(beforeGC);
+		v8::Isolate::GetCurrent()->AddGCEpilogueCallback(afterGC);
 		return 0;
 	}
-	
+
 	NODEGCPLUGIN_DECL int ibmras_monitoring_plugin_stop() {
 		plugin::api.logMessage(fine, "[gc_node] Stopping");
 		// TODO Unhook GC hooks...

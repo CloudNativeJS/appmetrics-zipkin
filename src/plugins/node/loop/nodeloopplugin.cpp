@@ -51,10 +51,6 @@ static char* NewCString(const std::string& s) {
 	return result;
 }
 
-static void cleanupHandle(uv_handle_t *handle) {
-	delete handle;
-}
-
 uv_check_t check_handle;
 int32_t min = 9999;
 int32_t max = 0;
@@ -131,7 +127,7 @@ void OnCheck(uv_check_t* handle) {
 extern "C" {
 	NODELOOPPLUGIN_DECL pushsource* ibmras_monitoring_registerPushSource(agentCoreFunctions api, uint32 provID) {
 	    plugin::api = api;
-	    plugin::api.logMessage(debug, "[loop_node] Registering push sources");
+	    plugin::api.logMessage(loggingLevel::debug, "[loop_node] Registering push sources");
 
 	    pushsource *head = createPushSource(0, "loop_node");
 	    plugin::provid = provID;
