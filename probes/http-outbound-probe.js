@@ -24,7 +24,6 @@ var semver = require('semver');
 
 var path = require('path');
 var serviceName = path.basename(process.argv[1]);
-console.log("JS httpoutbound probe");
 if (serviceName.includes(".js")) {
   serviceName = serviceName.substring(0,serviceName.length-3);
 }
@@ -96,11 +95,13 @@ HttpOutboundProbe.prototype.attach = function(name, target) {
           methodArgs,
           probeData,
           function(target, args, probeData) {
+              console.log("JS outbound aroundCallback");
             // Get HTTP request method from options
             var ri = getRequestItems(methodArgs[0]);
 			tracer.setId(tracer.createChildId());
 			tracer.recordServiceName(serviceName);
-			tracer.recordRpc(ri.requestmethod.toUpperCase());
+//			tracer.recordRpc(ri.requestmethod.toUpperCase());
+            tracer.recordRpc(ri.requestmethod);
 			tracer.recordBinary('http.url', ri.headers.referer);
 			tracer.recordAnnotation(new Annotation.ClientSend());
 

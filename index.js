@@ -13,9 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 ******************************************************************************/
-'use strict';
-module.exports = require('./lib/appmetrics-zipkin.js');
-*******************************************************************************/
+
 'use strict';
 var path = require('path');
 var main_filename = require.main != null ? require.main.filename : '';
