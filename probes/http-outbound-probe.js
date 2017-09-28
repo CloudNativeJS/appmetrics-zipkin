@@ -22,6 +22,21 @@ var url = require('url');
 var am = require('../');
 var semver = require('semver');
 
+var path = require('path');
+var serviceName = path.basename(process.argv[1]);
+console.log("JS httpoutbound probe");
+if (serviceName.includes(".js")) {
+  serviceName = serviceName.substring(0,serviceName.length-3);
+}
+ 
+const zipkin = require('zipkin');
+const {Request, Annotation} = require('zipkin');
+
+// In Node.js, the recommended context API to use is zipkin-context-cls.
+const CLSContext = require('zipkin-context-cls');
+const ctxImpl = new CLSContext(); // if you want to use CLS
+const {recorder} = require('../recorder');
+
 var methods;
 // In Node.js < v8.0.0 'get' calls 'request' so we only instrument 'request'
 if (semver.lt(process.version, '8.0.0')) {
@@ -41,12 +56,12 @@ function getRequestItems(options) {
   var returnObject = { requestMethod: 'GET', urlRequested: '', headers: '' };
   if (options !== null) {
     var parsedOptions;
-    switch(typeof options) {
+    switch (typeof options) {
       case 'object':
         returnObject.urlRequested = formatURL(options);
         parsedOptions = options;
         break;
-      case 'string': 
+      case 'string':
         returnObject.urlRequested = options;
         parsedOptions = url.parse(options);
         break;
@@ -58,6 +73,12 @@ function getRequestItems(options) {
 }
 
 HttpOutboundProbe.prototype.attach = function(name, target) {
+  const tracer = new zipkin.Tracer({
+    ctxImpl,
+    recorder: recorder, 
+    sampler: new zipkin.sampler.CountingSampler(0.01), // sample rate 0.01 will sample 1 % of all incoming requests
+    traceId128Bit: true // to generate 128-bit trace IDs.
+  });
   var that = this;
   if (name === 'http') {
     if (target.__outboundProbeAttached__) return target;
@@ -77,6 +98,12 @@ HttpOutboundProbe.prototype.attach = function(name, target) {
           function(target, args, probeData) {
             // Get HTTP request method from options
             var ri = getRequestItems(methodArgs[0]);
+			tracer.setId(tracer.createChildId());
+			tracer.recordServiceName(serviceName);
+			tracer.recordRpc(ri.requestmethod.toUpperCase());
+			tracer.recordBinary('http.url', ri.headers.referer);
+			tracer.recordAnnotation(new Annotation.ClientSend());
+
             that.metricsProbeEnd(probeData, ri.requestMethod, ri.urlRequested, args[0], ri.headers);
             that.requestProbeEnd(probeData, ri.requestMethod, ri.urlRequested, args[0], ri.headers);
           },
@@ -95,6 +122,9 @@ HttpOutboundProbe.prototype.attach = function(name, target) {
           // End metrics (no response available so pass empty object)
           that.metricsProbeEnd(probeData, ri.requestMethod, ri.urlRequested, {}, ri.headers);
           that.requestProbeEnd(probeData, ri.requestMethod, ri.urlRequested, {}, ri.headers);
+          Request.addZipkinHeaders(ri, tracer.id);
+		  tracer.recordBinary('http.status_code', rc.toString());
+		  tracer.recordAnnotation(new Annotation.ClientRecv());
         }
         return rc;
       }
