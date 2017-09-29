@@ -27,7 +27,7 @@ var serviceName = path.basename(process.argv[1]);
 if (serviceName.includes(".js")) {
   serviceName = serviceName.substring(0,serviceName.length-3);
 }
- 
+
 const zipkin = require('zipkin');
 const {Request, Annotation} = require('zipkin');
 
@@ -74,7 +74,7 @@ function getRequestItems(options) {
 HttpOutboundProbe.prototype.attach = function(name, target) {
   const tracer = new zipkin.Tracer({
     ctxImpl,
-    recorder: recorder, 
+    recorder: recorder,
     sampler: new zipkin.sampler.CountingSampler(0.01), // sample rate 0.01 will sample 1 % of all incoming requests
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
@@ -88,28 +88,30 @@ HttpOutboundProbe.prototype.attach = function(name, target) {
       // Before 'http.request' function
       function(obj, methodName, methodArgs, probeData) {
         // Start metrics
+        var ri = getRequestItems(methodArgs[0]);
+        // console.log(util.inspect(ri));
         that.metricsProbeStart(probeData);
         that.requestProbeStart(probeData);
+        tracer.setId(tracer.createChildId());
+  			tracer.recordServiceName(serviceName);
+        tracer.recordRpc(ri.requestMethod);
+  			tracer.recordBinary('http.url', ri.urlRequested);
+  			tracer.recordAnnotation(new Annotation.ClientSend());
+
         // End metrics
         aspect.aroundCallback(
           methodArgs,
           probeData,
           function(target, args, probeData) {
-              console.log("JS outbound aroundCallback");
             // Get HTTP request method from options
             var ri = getRequestItems(methodArgs[0]);
-			tracer.setId(tracer.createChildId());
-			tracer.recordServiceName(serviceName);
-//			tracer.recordRpc(ri.requestmethod.toUpperCase());
-            tracer.recordRpc(ri.requestmethod);
-			tracer.recordBinary('http.url', ri.headers.referer);
-			tracer.recordAnnotation(new Annotation.ClientSend());
-
             that.metricsProbeEnd(probeData, ri.requestMethod, ri.urlRequested, args[0], ri.headers);
             that.requestProbeEnd(probeData, ri.requestMethod, ri.urlRequested, args[0], ri.headers);
+            tracer.recordBinary('http.status_code', target.res.statusCode.toString());
+
+            tracer.recordAnnotation(new Annotation.ClientRecv());
           },
           function(target, args, probeData, ret) {
-            // Don't need to do anything after the callback
             return ret;
           }
         );
@@ -123,9 +125,6 @@ HttpOutboundProbe.prototype.attach = function(name, target) {
           // End metrics (no response available so pass empty object)
           that.metricsProbeEnd(probeData, ri.requestMethod, ri.urlRequested, {}, ri.headers);
           that.requestProbeEnd(probeData, ri.requestMethod, ri.urlRequested, {}, ri.headers);
-          Request.addZipkinHeaders(ri, tracer.id);
-		  tracer.recordBinary('http.status_code', rc.toString());
-		  tracer.recordAnnotation(new Annotation.ClientRecv());
         }
         return rc;
       }

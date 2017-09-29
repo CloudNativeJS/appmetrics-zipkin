@@ -26,6 +26,26 @@ var util = require('util');
 // In https 'get' calls 'request' so we only instrument 'request'
 var methods = ['request'];
 
+var path = require('path');
+var serviceName = path.basename(process.argv[1]);
+if (serviceName.includes(".js")) {
+  serviceName = serviceName.substring(0, serviceName.length - 3);
+}
+
+const zipkin = require('zipkin');
+const {
+  Request,
+  Annotation
+} = require('zipkin');
+
+// In Node.js, the recommended context API to use is zipkin-context-cls.
+const CLSContext = require('zipkin-context-cls');
+const ctxImpl = new CLSContext(); // if you want to use CLS
+const {
+  recorder
+} = require('../recorder');
+
+
 // Probe to instrument outbound https requests
 
 function HttpsOutboundProbe() {
@@ -42,7 +62,7 @@ function getRequestItems(options) {
         returnObject.urlRequested = formatURL(options);
         parsedOptions = options;
         break;
-      case 'string': 
+      case 'string':
         returnObject.urlRequested = options;
         parsedOptions = url.parse(options);
         break;
@@ -54,6 +74,13 @@ function getRequestItems(options) {
 }
 
 HttpsOutboundProbe.prototype.attach = function(name, target) {
+  const tracer = new zipkin.Tracer({
+    ctxImpl,
+    recorder: recorder,
+    sampler: new zipkin.sampler.CountingSampler(0.01), // sample rate 0.01 will sample 1 % of all incoming requests
+    traceId128Bit: true // to generate 128-bit trace IDs.
+  });
+
   var that = this;
   if (name === 'https') {
     if (target.__outboundProbeAttached__) return target;
@@ -64,6 +91,12 @@ HttpsOutboundProbe.prototype.attach = function(name, target) {
       methods,
       // Before 'https.request' function
       function(obj, methodName, methodArgs, probeData) {
+        tracer.setId(tracer.createChildId());
+        tracer.recordServiceName(serviceName);
+        tracer.recordRpc(method.toUpperCase());
+        tracer.recordBinary('http.url', httpReq.headers.referer);
+        tracer.recordAnnotation(new Annotation.ClientSend());
+        tracer.recordAnnotation(new Annotation.LocalAddr(0));
 
         // Start metrics
         that.metricsProbeStart(probeData);
@@ -77,6 +110,8 @@ HttpsOutboundProbe.prototype.attach = function(name, target) {
 
             // Get HTTPS request method from options
             var ri = getRequestItems(methodArgs[0]);
+            tracer.recordServiceName(serviceName);
+            tracer.recordAnnotation(new Annotation.ClientRecv());
             that.metricsProbeEnd(probeData, ri.requestMethod, ri.urlRequested, args[0], ri.headers);
             that.requestProbeEnd(probeData, ri.requestMethod, ri.urlRequested, args[0], ri.headers);
           },
@@ -95,6 +130,9 @@ HttpsOutboundProbe.prototype.attach = function(name, target) {
           // End metrics (no response available so pass empty object)
           that.metricsProbeEnd(probeData, ri.requestMethod, ri.urlRequested, {}, ri.headers);
           that.requestProbeEnd(probeData, ri.requestMethod, ri.urlRequested, {}, ri.headers);
+          tracer.recordServiceName(serviceName);
+          tracer.recordBinary('http.status_code', rc.toString());
+          tracer.recordAnnotation(new Annotation.ClientRecv());
         }
         return rc;
       }
