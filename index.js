@@ -14,4 +14,4 @@
  * limitations under the License.
  ******************************************************************************/
 'use strict';
-module.exports = require('./lib/appmetrics-zipkin.js');
+module.exports = require('./appmetrics-zipkin.js');
