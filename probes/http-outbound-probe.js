@@ -30,6 +30,7 @@ if (serviceName.includes(".js")) {
 const zipkin = require('zipkin');
 const {
   Request,
+  HttpHeaders: Headers,
   Annotation
 } = require('zipkin');
 
@@ -83,6 +84,11 @@ function getRequestItems(options) {
   return returnObject;
 }
 
+function hasZipkinHeader(httpReq) {
+  const headers = httpReq.headers || {};
+  return headers[Header.TraceId] !== undefined && headers[Header.SpanId] !== undefined;
+}
+
 HttpOutboundProbe.prototype.attach = function(name, target) {
   const tracer = new zipkin.Tracer({
     ctxImpl,
@@ -99,15 +105,36 @@ HttpOutboundProbe.prototype.attach = function(name, target) {
       methods,
       // Before 'http.request' function
       function(obj, methodName, methodArgs, probeData) {
-        // Start metrics
-        var ri = getRequestItems(methodArgs[0]);
-        // console.log(util.inspect(ri));
-        tracer.setId(tracer.createChildId());
-        tracer.recordServiceName(serviceName);
-        tracer.recordRpc(ri.requestMethod);
-        tracer.recordBinary('http.url', ri.urlRequested);
-        tracer.recordAnnotation(new Annotation.ClientSend());
+        // Get HTTP request method from options
+        var options = methodArgs[0];
+        var requestMethod = "GET";
+        var urlRequested = "";
+        var headers = "";
+        if (typeof options === 'object') {
+          urlRequested = formatURL(options)
+          if (options.method) {
+            requestMethod = options.method;
+          }
+          if (options.headers) {
+            headers = options.headers;
+          }
+        } else if (typeof options === 'string') {
+          urlRequested = options;
+          var parsedOptions = url.parse(options);
+          if (parsedOptions.method) {
+            requestMethod = parsedOptions.method;
+          }
+          if (parsedOptions.headers) {
+            headers = parsedOptions.headers;
+          }
+        }
 
+        Request.addZipkinHeaders(methodArgs[0], tracer.createChildId());
+        that.requestProbeStart(probeData, requestMethod, urlRequested);
+        tracer.recordServiceName(serviceName);
+        tracer.recordRpc(requestMethod);
+        tracer.recordBinary('http.url', urlRequested);
+        tracer.recordAnnotation(new Annotation.ClientSend());
         // End metrics
         aspect.aroundCallback(
           methodArgs,
@@ -115,6 +142,7 @@ HttpOutboundProbe.prototype.attach = function(name, target) {
           function(target, args, probeData) {
             tracer.recordBinary('http.status_code', target.res.statusCode.toString());
             tracer.recordAnnotation(new Annotation.ClientRecv());
+            that.requestProbeEnd(probeData, requestMethod, urlRequested, args[0], headers);
           },
           function(target, args, probeData, ret) {
             return ret;
@@ -161,5 +189,24 @@ function formatURL(httpOptions) {
   }
   return url;
 }
+/*
+ * Heavyweight request probes for HTTP outbound requests
+ */
+HttpOutboundProbe.prototype.requestStart = function(probeData, method, url) {
+  var reqType = 'http-outbound';
+  // Do not mark as a root request
+  probeData.req = request.startRequest(reqType, url, false, probeData.timer);
+};
+
+HttpOutboundProbe.prototype.requestEnd = function(probeData, method, url, res, headers) {
+  if (probeData && probeData.req)
+    probeData.req.stop({
+      url: url,
+      statusCode: res.statusCode,
+      contentType: res.headers ? res.headers['content-type'] : "undefined",
+      requestHeaders: headers
+    });
+};
+
 
 module.exports = HttpOutboundProbe;

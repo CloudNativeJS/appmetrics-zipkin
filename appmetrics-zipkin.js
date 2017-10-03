@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2014, 2015 IBM Corp.
+ * Copyright 2017 IBM Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,14 @@ files.forEach(function(fileName) {
   var probeModule = new(require(file))();
   probes.push(probeModule);
 });
+
+// Start the probes
+probes.forEach(function (probe) {
+  probe.start();
+  probe.enableRequests();
+});
+
+
 
 /*
  * Patch the module require function to run the probe attach function

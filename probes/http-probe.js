@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2015 IBM Corp.
+ * Copyright 2017 IBM Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,9 +26,13 @@ if (serviceName.includes(".js")) {
 }
 
 const zipkin = require('zipkin');
+
 const {
   Request,
-  Annotation
+  HttpHeaders: Header,
+  option: {Some, None},
+  Annotation,
+  TraceId
 } = require('zipkin');
 
 // In Node.js, the recommended context API to use is zipkin-context-cls.
@@ -38,6 +42,12 @@ const {
   recorder
 } = require('../lib/recorder');
 
+function hasZipkinHeader(httpReq) {
+  const headers = httpReq.headers || {};
+  return headers[(Header.TraceId).toLowerCase()] !== undefined && headers[(Header.SpanId).toLowerCase()] !== undefined;
+}
+
+
 function HttpProbe() {
   Probe.call(this, 'http');
   this.config = {
@@ -45,6 +55,19 @@ function HttpProbe() {
   };
 }
 util.inherits(HttpProbe, Probe);
+
+
+function stringToBoolean(str) {
+  return str === '1';
+}
+
+function stringToIntOption(str) {
+  try {
+    return new Some(parseInt(str));
+  } catch (err) {
+    return None;
+  }
+}
 
 HttpProbe.prototype.attach = function(name, target) {
   const tracer = new zipkin.Tracer({
@@ -73,16 +96,45 @@ HttpProbe.prototype.attach = function(name, target) {
           // console.log(util.inspect(httpReq));
           if (traceUrl !== '') {
             const method = httpReq.method;
-            tracer.setId(tracer.createChildId());
+
+            if (hasZipkinHeader(httpReq)) {
+              const headers = httpReq.headers;
+              var spanId = headers[(Header.SpanId).toLowerCase()];
+              if (spanId !== undefined) {
+                const traceId = new Some(headers[(Header.TraceId).toLowerCase()]);
+                const parentSpanId = new Some(headers[(Header.ParentSpanId).toLowerCase()]);
+                const sampled = new Some(headers[(Header.Sampled).toLowerCase()]);
+                const flags = (new Some(headers[(Header.Flags).toLowerCase()])).flatMap(stringToIntOption).getOrElse(0);
+                var id = new TraceId({
+                  traceId: traceId,
+                  parentId: parentSpanId,
+                  spanId: spanId,
+                  sampled: sampled.map(stringToBoolean),
+                  flags
+                });
+                tracer.setId(id);
+                probeData.traceId = tracer.id;
+              };
+            } else {
+              tracer.setId(tracer.createRootId());
+              probeData.traceId = tracer.id;
+              Request.addZipkinHeaders(args[0], tracer.id);
+            }
+
+            that.requestProbeStart(probeData, httpReq.method, traceUrl);
+
             tracer.recordServiceName(serviceName);
             tracer.recordRpc(method.toUpperCase());
             tracer.recordBinary('http.url', httpReq.headers.host + traceUrl);
             tracer.recordAnnotation(new Annotation.ServerRecv());
             tracer.recordAnnotation(new Annotation.LocalAddr(0));
+
+
             aspect.after(res, 'end', probeData, function(obj, methodName, args, probeData, ret) {
-              Request.addZipkinHeaders(res, tracer.id);
               tracer.recordBinary('http.status_code', res.statusCode.toString());
               tracer.recordAnnotation(new Annotation.ServerSend());
+
+              that.requestProbeEnd(probeData, httpReq.method, traceUrl, res, httpReq);
             });
           }
         });
@@ -100,8 +152,6 @@ function constructUrl(req) {
     search: parsed.search
   });
 }
-
-
 
 /*
  * Custom req.url parser that strips out any trailing query
@@ -132,5 +182,15 @@ HttpProbe.prototype.filterUrl = function(req) {
   return resultUrl;
 }
 
+HttpProbe.prototype.requestStart = function (probeData, method, url) {
+    var reqType = 'http';
+    // Mark as a root request as this happens due to an external event
+    probeData.req = request.startRequest(reqType, url, true, probeData.timer, probeData.traceId );
+};
+
+HttpProbe.prototype.requestEnd = function (probeData, method, url, res, httpReq) {
+    if(probeData && probeData.req)
+        probeData.req.stop({url: url, method: method, requestHeader: httpReq.headers, statusCode: res.statusCode, header: res._header, contentType: res.getHeader('content-type')});
+};
 
 module.exports = HttpProbe;

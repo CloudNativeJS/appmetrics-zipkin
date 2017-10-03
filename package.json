@@ -5,6 +5,9 @@
   "main": "index.js",
   "dependencies": {
     "appmetrics": "^3.0.1",
+    "zipkin": "",
+    "zipkin-context-cls": "",
+    "zipkin-transport-http": "",
     "debug": "^2.6.0"
   },
   "devDependencies": {
