@@ -28,6 +28,7 @@ var util = require('util');
  */
 var probes = [];
 var traceProbe;
+var options;
 
 var dirPath = path.join(__dirname, 'probes');
 // console.log("dirpath " + dirPath);
@@ -39,13 +40,15 @@ files.forEach(function(fileName) {
   probes.push(probeModule);
 });
 
-// Start the probes
-probes.forEach(function (probe) {
-  probe.start();
-  probe.enableRequests();
-});
-
-
+function start(options) {
+  // Configure and start the probes
+  probes.forEach(function (probe) {
+    console.log("JS before probe.setConfig options=" + util.inspect(options));
+    probe.setConfig(options);
+    probe.start();
+    probe.enableRequests();
+  });
+}
 
 /*
  * Patch the module require function to run the probe attach function
@@ -65,3 +68,9 @@ aspect.after(module.__proto__, 'require', data, function(obj, methodName, args, 
     return ret;
   }
 });
+
+exports.configure = function(options) {
+    console.log("JS zipkin configure options=" + util.inspect(options));
+    options = options;
+    start(options);
+}

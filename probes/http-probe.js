@@ -20,10 +20,6 @@ var util = require('util');
 var url = require('url');
 
 var path = require('path');
-var serviceName = path.basename(process.argv[1]);
-if (serviceName.includes(".js")) {
-  serviceName = serviceName.substring(0, serviceName.length - 3);
-}
 
 const zipkin = require('zipkin');
 
@@ -51,7 +47,7 @@ function hasZipkinHeader(httpReq) {
 function HttpProbe() {
   Probe.call(this, 'http');
   this.config = {
-    filters: []
+    filters: [],
   };
 }
 util.inherits(HttpProbe, Probe);
@@ -123,7 +119,7 @@ HttpProbe.prototype.attach = function(name, target) {
 
             that.requestProbeStart(probeData, httpReq.method, traceUrl);
 
-            tracer.recordServiceName(serviceName);
+            tracer.recordServiceName(getServiceName());
             tracer.recordRpc(method.toUpperCase());
             tracer.recordBinary('http.url', httpReq.headers.host + traceUrl);
             tracer.recordAnnotation(new Annotation.ServerRecv());
@@ -163,6 +159,18 @@ var parse = function(url) {
   });
   return url;
 };
+
+function getServiceName() {
+  var serviceName = this.config[serviceName];
+  console.log("JS getServiceName="+serviceName);
+  if (serviceName !== undefined) {
+    serviceName = path.basename(process.argv[1]);
+    if (serviceName.includes(".js")) {
+      serviceName = serviceName.substring(0, serviceName.length - 3);
+    }
+  }
+  return serviceName;
+}
 
 /*
  * Ignore requests for URLs which we've been configured via regex to ignore
