@@ -161,14 +161,14 @@ var parse = function(url) {
 };
 
 function getServiceName() {
-  var serviceName = this.config[serviceName];
-  console.log("JS getServiceName="+serviceName);
-  if (serviceName !== undefined) {
-    serviceName = path.basename(process.argv[1]);
+ // var serviceName = this.config[serviceName];
+ // console.log("JS getServiceName="+serviceName);
+//  if (serviceName !== undefined) {
+    var serviceName = path.basename(process.argv[1]);
     if (serviceName.includes(".js")) {
       serviceName = serviceName.substring(0, serviceName.length - 3);
     }
-  }
+//  }
   return serviceName;
 }
 
