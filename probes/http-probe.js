@@ -66,6 +66,7 @@ function stringToIntOption(str) {
 }
 
 HttpProbe.prototype.attach = function(name, target) {
+    console.log('JS HTTPPROBE ATTACH TOP');
   const tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: recorder,
