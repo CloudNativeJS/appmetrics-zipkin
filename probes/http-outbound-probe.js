@@ -20,26 +20,18 @@ var request = require('../lib/request.js');
 var util = require('util');
 var url = require('url');
 var semver = require('semver');
-
-var path = require('path');
-var serviceName = path.basename(process.argv[1]);
-if (serviceName.includes(".js")) {
-  serviceName = serviceName.substring(0, serviceName.length - 3);
-}
-
 const zipkin = require('zipkin');
+
+var serviceName;
+
 const {
   Request,
   HttpHeaders: Headers,
   Annotation
 } = require('zipkin');
 
-// In Node.js, the recommended context API to use is zipkin-context-cls.
 const CLSContext = require('zipkin-context-cls');
-const ctxImpl = new CLSContext(); // if you want to use CLS
-const {
-  recorder
-} = require('../lib/recorder');
+const ctxImpl = new CLSContext();
 
 var methods;
 // In Node.js < v8.0.0 'get' calls 'request' so we only instrument 'request'
@@ -92,10 +84,11 @@ function hasZipkinHeader(httpReq) {
 HttpOutboundProbe.prototype.attach = function(name, target) {
   const tracer = new zipkin.Tracer({
     ctxImpl,
-    recorder: recorder,
+    recorder: this.recorder,
     sampler: new zipkin.sampler.CountingSampler(0.01), // sample rate 0.01 will sample 1 % of all incoming requests
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
+  serviceName = this.config['serviceName'];
   var that = this;
   if (name === 'http') {
     if (target.__outboundProbeAttached__) return target;

@@ -15,25 +15,19 @@
  *******************************************************************************/
 var path = require("path")
 var module_dir = path.dirname(module.filename)
-var os = require("os")
 var aspect = require('./lib/aspect.js');
-var request = require('./lib/request.js');
 var fs = require('fs');
-var util = require('util');
 
-/*
- * Load module probes into probes array by searching the probes directory.
- * We handle the 'trace' probe as a special case because we don't want to put
- * the probe hooks in by default due to the performance cost.
- */
+const {BatchRecorder} = require('zipkin');
+const {HttpLogger} = require('zipkin-transport-http');
+
+// Load module probes into probes array by searching the probes directory.
 var probes = [];
-var traceProbe;
 var options;
 
 var dirPath = path.join(__dirname, 'probes');
-// console.log("dirpath " + dirPath);
 var files = fs.readdirSync(dirPath);
-// console.log("files is" + util.inspect(files));
+
 files.forEach(function(fileName) {
   var file = path.join(dirPath, fileName);
   var probeModule = new(require(file))();
@@ -41,10 +35,20 @@ files.forEach(function(fileName) {
 });
 
 function start(options) {
+  // Set up the zipkin
+  const host = options['host'] || 'localhost';
+  const port = options['port'] || 9411;
+  const zipkinUrl = `http://${host}:${port}`;
+  recorder = new BatchRecorder({
+    logger: new HttpLogger({
+      endpoint: `${zipkinUrl}/api/v1/spans`
+    })
+   });
+
   // Configure and start the probes
   probes.forEach(function (probe) {
-    console.log("JS before probe.setConfig options=" + util.inspect(options));
     probe.setConfig(options);
+    probe.setRecorder(recorder);
     probe.start();
     probe.enableRequests();
   });
@@ -70,7 +74,6 @@ aspect.after(module.__proto__, 'require', data, function(obj, methodName, args, 
 });
 
 exports.configure = function(options) {
-    console.log("JS zipkin configure options=" + util.inspect(options));
     options = options;
     start(options);
 }

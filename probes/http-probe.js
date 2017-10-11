@@ -18,10 +18,10 @@ var aspect = require('../lib/aspect.js');
 var request = require('../lib/request.js');
 var util = require('util');
 var url = require('url');
-
 var path = require('path');
-
 const zipkin = require('zipkin');
+
+var serviceName;
 
 const {
   Request,
@@ -31,12 +31,8 @@ const {
   TraceId
 } = require('zipkin');
 
-// In Node.js, the recommended context API to use is zipkin-context-cls.
 const CLSContext = require('zipkin-context-cls');
-const ctxImpl = new CLSContext(); // if you want to use CLS
-const {
-  recorder
-} = require('../lib/recorder');
+const ctxImpl = new CLSContext();
 
 function hasZipkinHeader(httpReq) {
   const headers = httpReq.headers || {};
@@ -66,10 +62,10 @@ function stringToIntOption(str) {
 }
 
 HttpProbe.prototype.attach = function(name, target) {
-    console.log('JS HTTPPROBE ATTACH TOP');
+  serviceName = this.config['serviceName'];
   const tracer = new zipkin.Tracer({
     ctxImpl,
-    recorder: recorder,
+    recorder: this.recorder,
     sampler: new zipkin.sampler.CountingSampler(0.01), // sample rate 0.01 will sample 1 % of all incoming requests
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
@@ -120,7 +116,7 @@ HttpProbe.prototype.attach = function(name, target) {
 
             that.requestProbeStart(probeData, httpReq.method, traceUrl);
 
-            tracer.recordServiceName(getServiceName());
+            tracer.recordServiceName(serviceName);
             tracer.recordRpc(method.toUpperCase());
             tracer.recordBinary('http.url', httpReq.headers.host + traceUrl);
             tracer.recordAnnotation(new Annotation.ServerRecv());
@@ -160,18 +156,6 @@ var parse = function(url) {
   });
   return url;
 };
-
-function getServiceName() {
- // var serviceName = this.config[serviceName];
- // console.log("JS getServiceName="+serviceName);
-//  if (serviceName !== undefined) {
-    var serviceName = path.basename(process.argv[1]);
-    if (serviceName.includes(".js")) {
-      serviceName = serviceName.substring(0, serviceName.length - 3);
-    }
-//  }
-  return serviceName;
-}
 
 /*
  * Ignore requests for URLs which we've been configured via regex to ignore
