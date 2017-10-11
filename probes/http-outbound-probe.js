@@ -19,6 +19,7 @@ var aspect = require('../lib/aspect.js');
 var request = require('../lib/request.js');
 var util = require('util');
 var url = require('url');
+
 var semver = require('semver');
 const zipkin = require('zipkin');
 
@@ -49,11 +50,13 @@ function HttpOutboundProbe() {
 util.inherits(HttpOutboundProbe, Probe);
 
 function getRequestItems(options) {
+
   var returnObject = {
     requestMethod: 'GET',
     urlRequested: '',
     headers: ''
   };
+
   if (options !== null) {
     var parsedOptions;
     switch (typeof options) {
@@ -66,15 +69,18 @@ function getRequestItems(options) {
         parsedOptions = url.parse(options);
         break;
     }
+
     if (parsedOptions.method) {
       returnObject.requestMethod = parsedOptions.method;
     }
     if (parsedOptions.headers) {
       returnObject.headers = parsedOptions.headers;
     }
+
   }
   return returnObject;
 }
+
 
 function hasZipkinHeader(httpReq) {
   const headers = httpReq.headers || {};
@@ -89,6 +95,7 @@ HttpOutboundProbe.prototype.attach = function(name, target) {
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
   serviceName = this.config['serviceName'];
+
   var that = this;
   if (name === 'http') {
     if (target.__outboundProbeAttached__) return target;
@@ -98,6 +105,7 @@ HttpOutboundProbe.prototype.attach = function(name, target) {
       methods,
       // Before 'http.request' function
       function(obj, methodName, methodArgs, probeData) {
+
         // Get HTTP request method from options
         var options = methodArgs[0];
         var requestMethod = "GET";
@@ -128,14 +136,17 @@ HttpOutboundProbe.prototype.attach = function(name, target) {
         tracer.recordRpc(requestMethod);
         tracer.recordBinary('http.url', urlRequested);
         tracer.recordAnnotation(new Annotation.ClientSend());
+
         // End metrics
         aspect.aroundCallback(
           methodArgs,
           probeData,
           function(target, args, probeData) {
+
             tracer.recordBinary('http.status_code', target.res.statusCode.toString());
             tracer.recordAnnotation(new Annotation.ClientRecv());
             that.requestProbeEnd(probeData, requestMethod, urlRequested, args[0], headers);
+
           },
           function(target, args, probeData, ret) {
             return ret;
@@ -145,6 +156,7 @@ HttpOutboundProbe.prototype.attach = function(name, target) {
       // After 'http.request' function returns
       function(target, methodName, methodArgs, probeData, rc) {
         // If no callback has been used then end the metrics after returning from the method instead
+
         return rc;
       }
     );
@@ -182,6 +194,7 @@ function formatURL(httpOptions) {
   }
   return url;
 }
+
 /*
  * Heavyweight request probes for HTTP outbound requests
  */
@@ -196,6 +209,7 @@ HttpOutboundProbe.prototype.requestEnd = function(probeData, method, url, res, h
     probeData.req.stop({
       url: url,
       statusCode: res.statusCode,
+
       contentType: res.headers ? res.headers['content-type'] : "undefined",
       requestHeaders: headers
     });

@@ -1,6 +1,5 @@
 /*******************************************************************************
  * Copyright 2017 IBM Corp.
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -18,6 +17,7 @@ var aspect = require('../lib/aspect.js');
 var request = require('../lib/request.js');
 var util = require('util');
 var url = require('url');
+
 var path = require('path');
 const zipkin = require('zipkin');
 
@@ -40,6 +40,7 @@ function hasZipkinHeader(httpReq) {
 }
 
 
+
 function HttpProbe() {
   Probe.call(this, 'http');
   this.config = {
@@ -47,7 +48,6 @@ function HttpProbe() {
   };
 }
 util.inherits(HttpProbe, Probe);
-
 
 function stringToBoolean(str) {
   return str === '1';
@@ -84,11 +84,13 @@ HttpProbe.prototype.attach = function(name, target) {
         aspect.aroundCallback(args, probeData, function(obj, args, probeData) {
           var httpReq = args[0];
           var res = args[1];
+
           // Filter out urls where filter.to is ''
           var traceUrl = that.filterUrl(httpReq);
           // console.log(util.inspect(httpReq));
           if (traceUrl !== '') {
             const method = httpReq.method;
+
 
             if (hasZipkinHeader(httpReq)) {
               const headers = httpReq.headers;
@@ -115,18 +117,15 @@ HttpProbe.prototype.attach = function(name, target) {
             }
 
             that.requestProbeStart(probeData, httpReq.method, traceUrl);
-
             tracer.recordServiceName(serviceName);
             tracer.recordRpc(method.toUpperCase());
             tracer.recordBinary('http.url', httpReq.headers.host + traceUrl);
             tracer.recordAnnotation(new Annotation.ServerRecv());
             tracer.recordAnnotation(new Annotation.LocalAddr(0));
 
-
             aspect.after(res, 'end', probeData, function(obj, methodName, args, probeData, ret) {
               tracer.recordBinary('http.status_code', res.statusCode.toString());
               tracer.recordAnnotation(new Annotation.ServerSend());
-
               that.requestProbeEnd(probeData, httpReq.method, traceUrl, res, httpReq);
             });
           }
@@ -175,6 +174,7 @@ HttpProbe.prototype.filterUrl = function(req) {
   return resultUrl;
 }
 
+
 HttpProbe.prototype.requestStart = function (probeData, method, url) {
     var reqType = 'http';
     // Mark as a root request as this happens due to an external event
@@ -184,6 +184,7 @@ HttpProbe.prototype.requestStart = function (probeData, method, url) {
 HttpProbe.prototype.requestEnd = function (probeData, method, url, res, httpReq) {
     if(probeData && probeData.req)
         probeData.req.stop({url: url, method: method, requestHeader: httpReq.headers, statusCode: res.statusCode, header: res._header, contentType: res.getHeader('content-type')});
+
 };
 
 module.exports = HttpProbe;

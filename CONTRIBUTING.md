@@ -48,3 +48,5 @@ This agreement applies to all Contributions You Submit.
 
 You will promptly notify the Project if You become aware of any facts or circumstances that would make these commitments inaccurate in any way. To do so, please an issue on the project's GitHub [issue tracker](https://github.com/runtimetools/appmetrics-zipkin/issues).
 If You think the Project could make use of content which You did not author, please talk to a committer on the Project. If they like Your idea, they will know the process to get it included.
+=======
+
