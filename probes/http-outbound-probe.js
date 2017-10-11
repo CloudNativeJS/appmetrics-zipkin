@@ -19,22 +19,20 @@ var aspect = require('../lib/aspect.js');
 var request = require('../lib/request.js');
 var util = require('util');
 var url = require('url');
-var am = require('../');
+
 var semver = require('semver');
-
-var path = require('path');
-var serviceName = path.basename(process.argv[1]);
-if (serviceName.includes(".js")) {
-  serviceName = serviceName.substring(0,serviceName.length-3);
-}
-
 const zipkin = require('zipkin');
-const {Request, Annotation} = require('zipkin');
 
-// In Node.js, the recommended context API to use is zipkin-context-cls.
+var serviceName;
+
+const {
+  Request,
+  HttpHeaders: Headers,
+  Annotation
+} = require('zipkin');
+
 const CLSContext = require('zipkin-context-cls');
-const ctxImpl = new CLSContext(); // if you want to use CLS
-const {recorder} = require('../recorder');
+const ctxImpl = new CLSContext();
 
 var methods;
 // In Node.js < v8.0.0 'get' calls 'request' so we only instrument 'request'
@@ -52,7 +50,13 @@ function HttpOutboundProbe() {
 util.inherits(HttpOutboundProbe, Probe);
 
 function getRequestItems(options) {
-  var returnObject = { requestMethod: 'GET', urlRequested: '', headers: '' };
+
+  var returnObject = {
+    requestMethod: 'GET',
+    urlRequested: '',
+    headers: ''
+  };
+
   if (options !== null) {
     var parsedOptions;
     switch (typeof options) {
@@ -65,19 +69,33 @@ function getRequestItems(options) {
         parsedOptions = url.parse(options);
         break;
     }
-    if (parsedOptions.method) { returnObject.requestMethod = parsedOptions.method; }
-    if (parsedOptions.headers) { returnObject.headers = parsedOptions.headers; }
+
+    if (parsedOptions.method) {
+      returnObject.requestMethod = parsedOptions.method;
+    }
+    if (parsedOptions.headers) {
+      returnObject.headers = parsedOptions.headers;
+    }
+
   }
   return returnObject;
+}
+
+
+function hasZipkinHeader(httpReq) {
+  const headers = httpReq.headers || {};
+  return headers[Header.TraceId] !== undefined && headers[Header.SpanId] !== undefined;
 }
 
 HttpOutboundProbe.prototype.attach = function(name, target) {
   const tracer = new zipkin.Tracer({
     ctxImpl,
-    recorder: recorder,
+    recorder: this.recorder,
     sampler: new zipkin.sampler.CountingSampler(0.01), // sample rate 0.01 will sample 1 % of all incoming requests
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
+  serviceName = this.config['serviceName'];
+
   var that = this;
   if (name === 'http') {
     if (target.__outboundProbeAttached__) return target;
@@ -87,29 +105,48 @@ HttpOutboundProbe.prototype.attach = function(name, target) {
       methods,
       // Before 'http.request' function
       function(obj, methodName, methodArgs, probeData) {
-        // Start metrics
-        var ri = getRequestItems(methodArgs[0]);
-        // console.log(util.inspect(ri));
-        that.metricsProbeStart(probeData);
-        that.requestProbeStart(probeData);
-        tracer.setId(tracer.createChildId());
-  			tracer.recordServiceName(serviceName);
-        tracer.recordRpc(ri.requestMethod);
-  			tracer.recordBinary('http.url', ri.urlRequested);
-  			tracer.recordAnnotation(new Annotation.ClientSend());
+
+        // Get HTTP request method from options
+        var options = methodArgs[0];
+        var requestMethod = "GET";
+        var urlRequested = "";
+        var headers = "";
+        if (typeof options === 'object') {
+          urlRequested = formatURL(options)
+          if (options.method) {
+            requestMethod = options.method;
+          }
+          if (options.headers) {
+            headers = options.headers;
+          }
+        } else if (typeof options === 'string') {
+          urlRequested = options;
+          var parsedOptions = url.parse(options);
+          if (parsedOptions.method) {
+            requestMethod = parsedOptions.method;
+          }
+          if (parsedOptions.headers) {
+            headers = parsedOptions.headers;
+          }
+        }
+
+        Request.addZipkinHeaders(methodArgs[0], tracer.createChildId());
+        that.requestProbeStart(probeData, requestMethod, urlRequested);
+        tracer.recordServiceName(serviceName);
+        tracer.recordRpc(requestMethod);
+        tracer.recordBinary('http.url', urlRequested);
+        tracer.recordAnnotation(new Annotation.ClientSend());
 
         // End metrics
         aspect.aroundCallback(
           methodArgs,
           probeData,
           function(target, args, probeData) {
-            // Get HTTP request method from options
-            var ri = getRequestItems(methodArgs[0]);
-            that.metricsProbeEnd(probeData, ri.requestMethod, ri.urlRequested, args[0], ri.headers);
-            that.requestProbeEnd(probeData, ri.requestMethod, ri.urlRequested, args[0], ri.headers);
-            tracer.recordBinary('http.status_code', target.res.statusCode.toString());
 
+            tracer.recordBinary('http.status_code', target.res.statusCode.toString());
             tracer.recordAnnotation(new Annotation.ClientRecv());
+            that.requestProbeEnd(probeData, requestMethod, urlRequested, args[0], headers);
+
           },
           function(target, args, probeData, ret) {
             return ret;
@@ -119,13 +156,7 @@ HttpOutboundProbe.prototype.attach = function(name, target) {
       // After 'http.request' function returns
       function(target, methodName, methodArgs, probeData, rc) {
         // If no callback has been used then end the metrics after returning from the method instead
-        if (aspect.findCallbackArg(methodArgs) === undefined) {
-          // Need to get request method and URL again
-          var ri = getRequestItems(methodArgs[0]);
-          // End metrics (no response available so pass empty object)
-          that.metricsProbeEnd(probeData, ri.requestMethod, ri.urlRequested, {}, ri.headers);
-          that.requestProbeEnd(probeData, ri.requestMethod, ri.urlRequested, {}, ri.headers);
-        }
+
         return rc;
       }
     );
@@ -165,33 +196,6 @@ function formatURL(httpOptions) {
 }
 
 /*
- * Lightweight metrics probe for HTTP requests
- *
- * These provide:
- *   time:            time event started
- *   method:          HTTP method, eg. GET, POST, etc
- *   url:             The url requested
- *   requestHeaders:  The HTTP headers for the request
- *   duration:        The time for the request to respond
- *   contentType:     HTTP content-type
- *   statusCode:      HTTP status code
- */
-HttpOutboundProbe.prototype.metricsEnd = function(probeData, method, url, res, headers) {
-  if (probeData && probeData.timer) {
-    probeData.timer.stop();
-    am.emit('http-outbound', {
-      time: probeData.timer.startTimeMillis,
-      method: method,
-      url: url,
-      duration: probeData.timer.timeDelta,
-      statusCode: res.statusCode,
-      contentType: res.headers ? res.headers['content-type'] : undefined,
-      requestHeaders: headers,
-    });
-  }
-};
-
-/*
  * Heavyweight request probes for HTTP outbound requests
  */
 HttpOutboundProbe.prototype.requestStart = function(probeData, method, url) {
@@ -205,9 +209,11 @@ HttpOutboundProbe.prototype.requestEnd = function(probeData, method, url, res, h
     probeData.req.stop({
       url: url,
       statusCode: res.statusCode,
-      contentType: res.headers ? res.headers['content-type'] : undefined,
-      requestHeaders: headers,
+
+      contentType: res.headers ? res.headers['content-type'] : "undefined",
+      requestHeaders: headers
     });
 };
+
 
 module.exports = HttpOutboundProbe;

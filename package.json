@@ -1,6 +1,6 @@
 {
   "name": "appmetrics-zipkin",
-  "version": "3.1.0",
+  "version": "0.0.1",
   "engines": {
     "node": ">=4"
   },
@@ -9,10 +9,12 @@
     "node-hc": "bin/appmetrics-cli.js"
   },
   "dependencies": {
-    "nan": "2.x",
-    "tar": "2.x",
-    "semver": "^5.3.0",
-    "jszip": "2.5.x"
+
+    "zipkin": "",
+    "zipkin-context-cls": "",
+    "zipkin-transport-http": "",
+    "debug": "^2.6.0"
+
   },
   "bundleDependencies": [
     "tar"
