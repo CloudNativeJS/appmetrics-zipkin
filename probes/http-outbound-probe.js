@@ -88,7 +88,7 @@ HttpOutboundProbe.prototype.attach = function(name, target) {
     sampler: new zipkin.sampler.CountingSampler(0.01), // sample rate 0.01 will sample 1 % of all incoming requests
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
-  serviceName = this.config['serviceName'];
+  serviceName = this.serviceName;
   var that = this;
   if (name === 'http') {
     if (target.__outboundProbeAttached__) return target;

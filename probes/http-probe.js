@@ -62,7 +62,8 @@ function stringToIntOption(str) {
 }
 
 HttpProbe.prototype.attach = function(name, target) {
-  serviceName = this.config['serviceName'];
+  serviceName = this.serviceName;
+
   const tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
