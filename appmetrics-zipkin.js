@@ -18,8 +18,12 @@ var module_dir = path.dirname(module.filename)
 var aspect = require('./lib/aspect.js');
 var fs = require('fs');
 
-const {BatchRecorder} = require('zipkin');
-const {HttpLogger} = require('zipkin-transport-http');
+const {
+  BatchRecorder
+} = require('zipkin');
+const {
+  HttpLogger
+} = require('zipkin-transport-http');
 
 // Load module probes into probes array by searching the probes directory.
 var probes = [];
@@ -28,27 +32,49 @@ var options;
 var dirPath = path.join(__dirname, 'probes');
 var files = fs.readdirSync(dirPath);
 
-files.forEach(function(fileName) {
-  var file = path.join(dirPath, fileName);
-  var probeModule = new(require(file))();
-  probes.push(probeModule);
-});
+var path = require('path');
+var processName = '';
+
+module.exports = function(options) {
+  options = options;
+  processName = path.basename(process.argv[1]);
+  if (processName.includes(".js")) {
+    processName = processName.substring(0, processName.length - 3);
+  }
+  files.forEach(function(fileName) {
+    var file = path.join(dirPath, fileName);
+    var probeModule = new(require(file))();
+    probes.push(probeModule);
+  });
+  start(options);
+}
 
 function start(options) {
   // Set up the zipkin
-  const host = options['host'] || 'localhost';
-  const port = options['port'] || 9411;
+  var host = 'localhost';
+  var port = 9411;
+  var serviceName = '';
+  if (options) {
+    host = options['host'] || 'localhost';
+    port = options['port'] || 9411;
+    serviceName = options['serviceName'];
+  }
+  if (serviceName == '') {
+    serviceName = processName;
+  }
   const zipkinUrl = `http://${host}:${port}`;
   recorder = new BatchRecorder({
     logger: new HttpLogger({
       endpoint: `${zipkinUrl}/api/v1/spans`
     })
-   });
+  });
+
 
   // Configure and start the probes
-  probes.forEach(function (probe) {
+  probes.forEach(function(probe) {
     probe.setConfig(options);
     probe.setRecorder(recorder);
+    probe.setServiceName(serviceName);
     probe.start();
     probe.enableRequests();
   });
@@ -72,8 +98,3 @@ aspect.after(module.__proto__, 'require', data, function(obj, methodName, args, 
     return ret;
   }
 });
-
-exports.configure = function(options) {
-    options = options;
-    start(options);
-}
