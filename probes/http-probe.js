@@ -15,7 +15,6 @@
  *******************************************************************************/
 var Probe = require('../lib/probe.js');
 var aspect = require('../lib/aspect.js');
-var request = require('../lib/request.js');
 var util = require('util');
 var url = require('url');
 var path = require('path');
@@ -115,8 +114,6 @@ HttpProbe.prototype.attach = function(name, target) {
               Request.addZipkinHeaders(args[0], tracer.id);
             }
 
-            that.requestProbeStart(probeData, httpReq.method, traceUrl);
-
             tracer.recordServiceName(serviceName);
             tracer.recordRpc(method.toUpperCase());
             tracer.recordBinary('http.url', httpReq.headers.host + traceUrl);
@@ -127,8 +124,6 @@ HttpProbe.prototype.attach = function(name, target) {
             aspect.after(res, 'end', probeData, function(obj, methodName, args, probeData, ret) {
               tracer.recordBinary('http.status_code', res.statusCode.toString());
               tracer.recordAnnotation(new Annotation.ServerSend());
-
-              that.requestProbeEnd(probeData, httpReq.method, traceUrl, res, httpReq);
             });
           }
         });
@@ -175,16 +170,5 @@ HttpProbe.prototype.filterUrl = function(req) {
   }
   return resultUrl;
 }
-
-HttpProbe.prototype.requestStart = function (probeData, method, url) {
-    var reqType = 'http';
-    // Mark as a root request as this happens due to an external event
-    probeData.req = request.startRequest(reqType, url, true, probeData.timer, probeData.traceId );
-};
-
-HttpProbe.prototype.requestEnd = function (probeData, method, url, res, httpReq) {
-    if(probeData && probeData.req)
-        probeData.req.stop({url: url, method: method, requestHeader: httpReq.headers, statusCode: res.statusCode, header: res._header, contentType: res.getHeader('content-type')});
-};
 
 module.exports = HttpProbe;

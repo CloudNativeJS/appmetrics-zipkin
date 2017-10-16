@@ -76,7 +76,7 @@ function start(options) {
     probe.setRecorder(recorder);
     probe.setServiceName(serviceName);
     probe.start();
-    probe.enableRequests();
+//    probe.enableRequests();
   });
 }
 
