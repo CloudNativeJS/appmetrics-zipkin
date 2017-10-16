@@ -16,7 +16,6 @@
 'use strict';
 var Probe = require('../lib/probe.js');
 var aspect = require('../lib/aspect.js');
-var request = require('../lib/request.js');
 var util = require('util');
 var url = require('url');
 var semver = require('semver');
@@ -123,7 +122,6 @@ HttpOutboundProbe.prototype.attach = function(name, target) {
         }
 
         Request.addZipkinHeaders(methodArgs[0], tracer.createChildId());
-        that.requestProbeStart(probeData, requestMethod, urlRequested);
         tracer.recordServiceName(serviceName);
         tracer.recordRpc(requestMethod);
         tracer.recordBinary('http.url', urlRequested);
@@ -135,7 +133,6 @@ HttpOutboundProbe.prototype.attach = function(name, target) {
           function(target, args, probeData) {
             tracer.recordBinary('http.status_code', target.res.statusCode.toString());
             tracer.recordAnnotation(new Annotation.ClientRecv());
-            that.requestProbeEnd(probeData, requestMethod, urlRequested, args[0], headers);
           },
           function(target, args, probeData, ret) {
             return ret;
@@ -182,24 +179,5 @@ function formatURL(httpOptions) {
   }
   return url;
 }
-/*
- * Heavyweight request probes for HTTP outbound requests
- */
-HttpOutboundProbe.prototype.requestStart = function(probeData, method, url) {
-  var reqType = 'http-outbound';
-  // Do not mark as a root request
-  probeData.req = request.startRequest(reqType, url, false, probeData.timer);
-};
-
-HttpOutboundProbe.prototype.requestEnd = function(probeData, method, url, res, headers) {
-  if (probeData && probeData.req)
-    probeData.req.stop({
-      url: url,
-      statusCode: res.statusCode,
-      contentType: res.headers ? res.headers['content-type'] : "undefined",
-      requestHeaders: headers
-    });
-};
-
 
 module.exports = HttpOutboundProbe;
