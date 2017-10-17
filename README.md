@@ -1,8 +1,8 @@
-#appmetrics-zipkin
+# appmetrics-zipkin
 
 appmetrics-zipkin provides [Zipkin](https://github.com/openzipkin/zipkin) instrumentation of Node.js applications using a single line: `require('appmetrics-zipkin')`. This makes use of
 
-##Configure Zipkin Endpoint
+## Configure Zipkin Endpoint
 Connecting to a [Zipkin](https://github.com/openzipkin/zipkin) endpoint is done by adding the desired hostname and port to `appmetrics-zipkin.properties` file.
 
 Alternatively, the hostname, port and service name (used by Zipkin to identify your application) can be added when including appmetrics-zipkin into your application:
@@ -20,7 +20,7 @@ var appzip = require('appmetrics-zipkin')({
 If no configuration details are provided, the endpoint will be _localhost:9411_ by default.
 
 
-##Usage
+## Usage
 ```
 var appzip = require('appmetrics-zipkin');
 var express = require('express');
