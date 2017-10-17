@@ -17,6 +17,8 @@ var path = require("path")
 var module_dir = path.dirname(module.filename)
 var aspect = require('./lib/aspect.js');
 var fs = require('fs');
+var PropertyReader = require('properties-reader');
+var properties = PropertyReader(__dirname + '/appmetrics-zipkin.properties');
 
 const {
   BatchRecorder
@@ -51,24 +53,41 @@ module.exports = function(options) {
 
 function start(options) {
   // Set up the zipkin
-  var host = 'localhost';
-  var port = 9411;
-  var serviceName = '';
+  var host, port, serviceName;
+
   if (options) {
-    host = options['host'] || 'localhost';
-    port = options['port'] || 9411;
+    host = options['host'];
+    port = options['port'];
     serviceName = options['serviceName'];
   }
-  if (serviceName == '') {
+
+  // Check if host & port are set in properties file
+  if (properties){
+    if (properties.get('host') != '') {
+        host = properties.get('host');
+    }
+    if (properties.get('port') != '') {
+        port = properties.get('port');
+    }
+  }
+
+  if (!serviceName) {
     serviceName = processName;
   }
+  if (!host) {
+    host = 'localhost';
+  }
+  if (!port) {
+    port = 9411;
+  }
+
+
   const zipkinUrl = `http://${host}:${port}`;
   recorder = new BatchRecorder({
     logger: new HttpLogger({
       endpoint: `${zipkinUrl}/api/v1/spans`
     })
   });
-
 
   // Configure and start the probes
   probes.forEach(function(probe) {
