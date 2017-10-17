@@ -64,10 +64,11 @@ function start(options) {
 
   // Check if host & port are set in properties file
   if (properties){
-    if (properties.get('host') != '') {
+    console.log(properties.get('host'));
+    if (properties.get('host') != '' && properties.get('host') != null) {
         host = properties.get('host');
     }
-    if (properties.get('port') != '') {
+    if (properties.get('port') != '' && properties.get('port') != null) {
         port = properties.get('port');
     }
   }
