@@ -19,6 +19,7 @@ var aspect = require('./lib/aspect.js');
 var fs = require('fs');
 var PropertyReader = require('properties-reader');
 var properties = PropertyReader(__dirname + '/appmetrics-zipkin.properties');
+var tcpp = require('tcp-ping');
 
 const {
   BatchRecorder
@@ -81,6 +82,12 @@ function start(options) {
     port = 9411;
   }
 
+  // Test if the host & port are valid
+  tcpp.probe(host, port, function(err, available){
+    if(!available){
+      console.log('Unable to contact Zipkin at ' + host + ':' + port);
+    }
+  });
 
   const zipkinUrl = `http://${host}:${port}`;
   recorder = new BatchRecorder({
