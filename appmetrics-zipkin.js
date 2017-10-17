@@ -62,13 +62,12 @@ function start(options) {
     serviceName = options['serviceName'];
   }
 
-  // Check if host & port are set in properties file
+  // Uses properties from file if present
   if (properties){
-    console.log(properties.get('host'));
-    if (properties.get('host') != '' && properties.get('host') != null) {
-        host = properties.get('host');
+    if (properties.get('host')) {
+        host =  properties.get('host');
     }
-    if (properties.get('port') != '' && properties.get('port') != null) {
+    if (properties.get('port')) {
         port = properties.get('port');
     }
   }
