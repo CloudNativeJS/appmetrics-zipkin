@@ -33,19 +33,19 @@ const {
 const CLSContext = require('zipkin-context-cls');
 const ctxImpl = new CLSContext();
 
-function hasZipkinHeader(httpReq) {
-  const headers = httpReq.headers || {};
+function hasZipkinHeader(httpsReq) {
+  const headers = httpsReq.headers || {};
   return headers[(Header.TraceId).toLowerCase()] !== undefined && headers[(Header.SpanId).toLowerCase()] !== undefined;
 }
 
 
-function HttpProbe() {
-  Probe.call(this, 'http');
+function HttpsProbe() {
+  Probe.call(this, 'https');
   this.config = {
     filters: [],
   };
 }
-util.inherits(HttpProbe, Probe);
+util.inherits(HttpsProbe, Probe);
 
 
 function stringToBoolean(str) {
@@ -60,7 +60,7 @@ function stringToIntOption(str) {
   }
 }
 
-HttpProbe.prototype.attach = function(name, target) {
+HttpsProbe.prototype.attach = function(name, target) {
   serviceName = this.serviceName;
 
   const tracer = new zipkin.Tracer({
@@ -71,7 +71,7 @@ HttpProbe.prototype.attach = function(name, target) {
   });
 
   var that = this;
-  if (name == 'http') {
+  if (name == 'https') {
     if (target.__zipkinProbeAttached__) return target;
     target.__zipkinProbeAttached__ = true;
     var methods = ['on', 'addListener'];
@@ -79,19 +79,18 @@ HttpProbe.prototype.attach = function(name, target) {
     aspect.before(target.Server.prototype, methods,
       function(obj, methodName, args, probeData) {
         if (args[0] !== 'request') return;
-        if (obj.__httpProbe__) return;
-        obj.__httpProbe__ = true;
+        if (obj.__httpsProbe__) return;
+        obj.__httpsProbe__ = true;
         aspect.aroundCallback(args, probeData, function(obj, args, probeData) {
-          var httpReq = args[0];
+          var httpsReq = args[0];
           var res = args[1];
           // Filter out urls where filter.to is ''
-          var traceUrl = that.filterUrl(httpReq);
-          // console.log(util.inspect(httpReq));
+          var traceUrl = that.filterUrl(httpsReq);
           if (traceUrl !== '') {
-            const method = httpReq.method;
+            const method = httpsReq.method;
 
-            if (hasZipkinHeader(httpReq)) {
-              const headers = httpReq.headers;
+            if (hasZipkinHeader(httpsReq)) {
+              const headers = httpsReq.headers;
               var spanId = headers[(Header.SpanId).toLowerCase()];
               if (spanId !== undefined) {
                 const traceId = new Some(headers[(Header.TraceId).toLowerCase()]);
@@ -116,7 +115,7 @@ HttpProbe.prototype.attach = function(name, target) {
 
             tracer.recordServiceName(serviceName);
             tracer.recordRpc(method.toUpperCase());
-            tracer.recordBinary('http.url', httpReq.headers.host + traceUrl);
+            tracer.recordBinary('http.url', httpsReq.headers.host + traceUrl);
             tracer.recordAnnotation(new Annotation.ServerRecv());
             tracer.recordAnnotation(new Annotation.LocalAddr(0));
 
@@ -156,7 +155,7 @@ var parse = function(url) {
 /*
  * Ignore requests for URLs which we've been configured via regex to ignore
  */
-HttpProbe.prototype.filterUrl = function(req) {
+HttpsProbe.prototype.filterUrl = function(req) {
   var resultUrl = parse(req.url);
   var filters = this.config.filters;
   if (filters.length == 0) return resultUrl;
@@ -171,4 +170,4 @@ HttpProbe.prototype.filterUrl = function(req) {
   return resultUrl;
 }
 
-module.exports = HttpProbe;
+module.exports = HttpsProbe;
