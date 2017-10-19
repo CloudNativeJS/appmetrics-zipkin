@@ -19,7 +19,7 @@ var appzip = require('appmetrics-zipkin')({
 
 **Note**: The properties file has precedence over the inline settings
 
-If no configuration details are provided, the endpoint will be _localhost:9411_ by default.
+If no configuration details are provided, the endpoint will be _localhost:9411_ and the serviceName will be set to the program name that requires appmetrics-zipkin.
 
 
 ## Usage
