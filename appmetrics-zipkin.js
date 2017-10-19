@@ -13,8 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *******************************************************************************/
-var path = require("path")
-var module_dir = path.dirname(module.filename)
+'use strict';
+
+var path = require('path');
+
 var aspect = require('./lib/aspect.js');
 var fs = require('fs');
 var PropertyReader = require('properties-reader');
@@ -30,27 +32,24 @@ const {
 
 // Load module probes into probes array by searching the probes directory.
 var probes = [];
-var options;
 
 var dirPath = path.join(__dirname, 'probes');
 var files = fs.readdirSync(dirPath);
-
-var path = require('path');
 var processName = '';
 
 module.exports = function(options) {
   options = options;
   processName = path.basename(process.argv[1]);
-  if (processName.includes(".js")) {
+  if (processName.includes('.js')) {
     processName = processName.substring(0, processName.length - 3);
   }
   files.forEach(function(fileName) {
     var file = path.join(dirPath, fileName);
-    var probeModule = new(require(file))();
+    var probeModule = new (require(file))();
     probes.push(probeModule);
   });
   start(options);
-}
+};
 
 function start(options) {
   // Set up the zipkin
@@ -65,10 +64,10 @@ function start(options) {
   // Uses properties from file if present
   if (properties){
     if (properties.get('host')) {
-        host =  properties.get('host');
+      host = properties.get('host');
     }
     if (properties.get('port')) {
-        port = properties.get('port');
+      port = properties.get('port');
     }
   }
 
@@ -83,14 +82,18 @@ function start(options) {
   }
 
   // Test if the host & port are valid
-  tcpp.probe(host, port, function(err, available){
-    if(!available){
+  tcpp.probe(host, port, function(err, available) {
+    if (err) {
+      console.log('Unable to contact Zipkin at ' + host + ':' + port);
+      return;
+    }
+    if (!available) {
       console.log('Unable to contact Zipkin at ' + host + ':' + port);
     }
   });
 
   const zipkinUrl = `http://${host}:${port}`;
-  recorder = new BatchRecorder({
+  const recorder = new BatchRecorder({
     logger: new HttpLogger({
       endpoint: `${zipkinUrl}/api/v1/spans`
     })
@@ -102,7 +105,7 @@ function start(options) {
     probe.setRecorder(recorder);
     probe.setServiceName(serviceName);
     probe.start();
-//    probe.enableRequests();
+    //    probe.enableRequests();
   });
 }
 
@@ -111,7 +114,7 @@ function start(options) {
  * for any matching module. This loads the monitoring probes into the modules
  */
 var data = {};
-
+/* eslint no-proto:0 */
 aspect.after(module.__proto__, 'require', data, function(obj, methodName, args, context, ret) {
   if (ret == null || ret.__ddProbeAttached__) {
     return ret;
