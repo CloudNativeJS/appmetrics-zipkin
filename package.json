@@ -1,11 +1,12 @@
 {
   "name": "appmetrics-zipkin",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Zipkin support for appmetrics.",
   "main": "index.js",
   "dependencies": {
     "debug": "^2.6.0",
     "properties-reader": "0.0.16",
+    "tcp-ping": "^0.1.1",
     "zipkin": "",
     "zipkin-context-cls": "",
     "zipkin-transport-http": ""
