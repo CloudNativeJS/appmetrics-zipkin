@@ -16,7 +16,8 @@
   },
   "scripts": {
     "pretest": "eslint .",
-    "pretravis": "eslint ."
+    "pretravis": "eslint .",
+    "travis": ""
   },
   "repository": {
     "type": "git",
