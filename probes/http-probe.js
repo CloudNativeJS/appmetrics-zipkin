@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *******************************************************************************/
+'use strict';
+
 var Probe = require('../lib/probe.js');
 var aspect = require('../lib/aspect.js');
 var util = require('util');
-var url = require('url');
-var path = require('path');
 const zipkin = require('zipkin');
 
 var serviceName;
@@ -25,7 +25,10 @@ var serviceName;
 const {
   Request,
   HttpHeaders: Header,
-  option: {Some, None},
+  option: {
+    Some,
+    None
+  },
   Annotation,
   TraceId
 } = require('zipkin');
@@ -54,7 +57,7 @@ function stringToBoolean(str) {
 
 function stringToIntOption(str) {
   try {
-    return new Some(parseInt(str));
+    return new Some(parseInt(str, 10));
   } catch (err) {
     return None;
   }
@@ -131,44 +134,5 @@ HttpProbe.prototype.attach = function(name, target) {
   }
   return target;
 };
-
-function constructUrl(req) {
-  const parsed = url.parse(req.originalUrl);
-  return url.format({
-    protocol: req.protocol,
-    host: req.get('host'),
-    pathname: parsed.pathname,
-    search: parsed.search
-  });
-}
-
-/*
- * Custom req.url parser that strips out any trailing query
- */
-var parse = function(url) {
-  ['?', '#'].forEach(function(separator) {
-    var index = url.indexOf(separator);
-    if (index !== -1) url = url.substring(0, index);
-  });
-  return url;
-};
-
-/*
- * Ignore requests for URLs which we've been configured via regex to ignore
- */
-HttpProbe.prototype.filterUrl = function(req) {
-  var resultUrl = parse(req.url);
-  var filters = this.config.filters;
-  if (filters.length == 0) return resultUrl;
-
-  var identifier = req.method + ' ' + resultUrl;
-  for (var i = 0; i < filters.length; ++i) {
-    var filter = filters[i];
-    if (filter.regex.test(identifier)) {
-      return filter.to;
-    }
-  }
-  return resultUrl;
-}
 
 module.exports = HttpProbe;

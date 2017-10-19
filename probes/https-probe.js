@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *******************************************************************************/
+'use strict';
+
 var Probe = require('../lib/probe.js');
 var aspect = require('../lib/aspect.js');
 var util = require('util');
-var url = require('url');
-var path = require('path');
 const zipkin = require('zipkin');
 
 var serviceName;
@@ -25,7 +25,10 @@ var serviceName;
 const {
   Request,
   HttpHeaders: Header,
-  option: {Some, None},
+  option: {
+    Some,
+    None
+  },
   Annotation,
   TraceId
 } = require('zipkin');
@@ -54,7 +57,7 @@ function stringToBoolean(str) {
 
 function stringToIntOption(str) {
   try {
-    return new Some(parseInt(str));
+    return new Some(parseInt(str, 10));
   } catch (err) {
     return None;
   }
@@ -131,16 +134,6 @@ HttpsProbe.prototype.attach = function(name, target) {
   return target;
 };
 
-function constructUrl(req) {
-  const parsed = url.parse(req.originalUrl);
-  return url.format({
-    protocol: req.protocol,
-    host: req.get('host'),
-    pathname: parsed.pathname,
-    search: parsed.search
-  });
-}
-
 /*
  * Custom req.url parser that strips out any trailing query
  */
@@ -168,6 +161,6 @@ HttpsProbe.prototype.filterUrl = function(req) {
     }
   }
   return resultUrl;
-}
+};
 
 module.exports = HttpsProbe;

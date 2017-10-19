@@ -25,7 +25,6 @@ var serviceName;
 
 const {
   Request,
-  HttpHeaders: Headers,
   Annotation
 } = require('zipkin');
 
@@ -47,39 +46,6 @@ function HttpOutboundProbe() {
 }
 util.inherits(HttpOutboundProbe, Probe);
 
-function getRequestItems(options) {
-  var returnObject = {
-    requestMethod: 'GET',
-    urlRequested: '',
-    headers: ''
-  };
-  if (options !== null) {
-    var parsedOptions;
-    switch (typeof options) {
-      case 'object':
-        returnObject.urlRequested = formatURL(options);
-        parsedOptions = options;
-        break;
-      case 'string':
-        returnObject.urlRequested = options;
-        parsedOptions = url.parse(options);
-        break;
-    }
-    if (parsedOptions.method) {
-      returnObject.requestMethod = parsedOptions.method;
-    }
-    if (parsedOptions.headers) {
-      returnObject.headers = parsedOptions.headers;
-    }
-  }
-  return returnObject;
-}
-
-function hasZipkinHeader(httpReq) {
-  const headers = httpReq.headers || {};
-  return headers[Header.TraceId] !== undefined && headers[Header.SpanId] !== undefined;
-}
-
 HttpOutboundProbe.prototype.attach = function(name, target) {
   const tracer = new zipkin.Tracer({
     ctxImpl,
@@ -88,7 +54,6 @@ HttpOutboundProbe.prototype.attach = function(name, target) {
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
   serviceName = this.serviceName;
-  var that = this;
   if (name === 'http') {
     if (target.__zipkinOutboundProbeAttached__) return target;
     target.__zipkinOutboundProbeAttached__ = true;
@@ -99,25 +64,18 @@ HttpOutboundProbe.prototype.attach = function(name, target) {
       function(obj, methodName, methodArgs, probeData) {
         // Get HTTP request method from options
         var options = methodArgs[0];
-        var requestMethod = "GET";
-        var urlRequested = "";
-        var headers = "";
+        var requestMethod = 'GET';
+        var urlRequested = '';
         if (typeof options === 'object') {
-          urlRequested = formatURL(options)
+          urlRequested = formatURL(options);
           if (options.method) {
             requestMethod = options.method;
-          }
-          if (options.headers) {
-            headers = options.headers;
           }
         } else if (typeof options === 'string') {
           urlRequested = options;
           var parsedOptions = url.parse(options);
           if (parsedOptions.method) {
             requestMethod = parsedOptions.method;
-          }
-          if (parsedOptions.headers) {
-            headers = parsedOptions.headers;
           }
         }
 
