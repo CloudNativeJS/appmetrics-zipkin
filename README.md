@@ -1,6 +1,8 @@
 # appmetrics-zipkin
 
-appmetrics-zipkin provides [Zipkin](https://github.com/openzipkin/zipkin) instrumentation of Node.js applications using a single line: `require('appmetrics-zipkin')`. This makes use of
+appmetrics-zipkin provides [Zipkin](https://github.com/openzipkin/zipkin) instrumentation of Node.js applications using a single line: `require('appmetrics-zipkin')`. 
+
+Unlike other zipkin instrumentation packages, appmetrics-zipkin will automatically inject missing trace header information into any inbound request and use the same value for the outbound request without any user intervention. This gives you a full trace across the http message with out any extra code.
 
 ## Configure Zipkin Endpoint
 Connecting to a [Zipkin](https://github.com/openzipkin/zipkin) endpoint is done by adding the desired hostname and port to `appmetrics-zipkin.properties` file.
