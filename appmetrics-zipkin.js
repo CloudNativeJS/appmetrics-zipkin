@@ -64,10 +64,10 @@ function start(options) {
   // Uses properties from file if present
   if (properties){
     if (properties.get('host')) {
-        host =  properties.get('host');
+      host = properties.get('host');
     }
     if (properties.get('port')) {
-        port = properties.get('port');
+      port = properties.get('port');
     }
   }
 
@@ -82,8 +82,12 @@ function start(options) {
   }
 
   // Test if the host & port are valid
-  tcpp.probe(host, port, function(err, available){
-    if(!available){
+  tcpp.probe(host, port, function(err, available) {
+    if (err) {
+      console.log('Unable to contact Zipkin at ' + host + ':' + port);
+      return;
+    }
+    if (!available) {
       console.log('Unable to contact Zipkin at ' + host + ':' + port);
     }
   });
