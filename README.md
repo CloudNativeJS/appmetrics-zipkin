@@ -58,7 +58,6 @@ var appzip = require('appmetrics-zipkin')({
   port: zipkinPort,
   serviceName:'my-kube-frontend'
 });
-
 ```
 
 You can see if the environment variables are present with the following commands
@@ -71,6 +70,3 @@ You can see if the environment variables are present with the following commands
 ZIPKIN_SERVICE_HOST=10.0.0.105
 ZIPKIN_SERVICE_PORT=9411
 ```
-
-
-
