@@ -36,3 +36,41 @@ app.listen(9000, () => {
 ```
 
 **Note**: `require('appmetrics-zipkin')` should be included before requiring other packages to ensure those packages are correctly instrumented
+
+## Using Zipkin with Node.js and Kubernetes
+Deploy the Zipkin service with a given service name and exposure type, for example, naming the service `zipkin` and choosing to expose the service via the `NodePort` mechanism.
+
+Your Node.js code to send Zipkin traffic to the discovered server would be as follows:
+```
+var zipkinHost = "localhost"
+var zipkinPort = 9411  
+
+if (process.env.ZIPKIN_SERVICE_HOST && process.env.ZIPKIN_SERVICE_PORT) {
+  console.log("Routing Zipkin traffic to the Zipkin Kubernetes service")
+  zipkinHost = process.env.ZIPKIN_SERVICE_HOST
+  zipkinPort = process.env.ZIPKIN_SERVICE_PORT
+} else {
+  console.log("Detected we're running the Zipkin server locally")
+}
+
+var appzip = require('appmetrics-zipkin')({
+  host: zipkinHost
+  port: zipkinPort,
+  serviceName:'my-kube-frontend'
+});
+
+```
+
+You can see if the environment variables are present with the following commands
+
+`kubectl get pods` to discover the pod of your Zipkin deployment
+`kubectl exec -it *pod name* printenv | grep SERVICE`, e.g.
+
+```
+[Node.js@IBM icp-nodejs-sample]$ kubectl exec -it test-zipkin-289126497-pjf5b printenv | grep SERVICE
+ZIPKIN_SERVICE_HOST=10.0.0.105
+ZIPKIN_SERVICE_PORT=9411
+```
+
+
+
