@@ -54,7 +54,7 @@ if (process.env.ZIPKIN_SERVICE_HOST && process.env.ZIPKIN_SERVICE_PORT) {
 }
 
 var appzip = require('appmetrics-zipkin')({
-  host: zipkinHost
+  host: zipkinHost,
   port: zipkinPort,
   serviceName:'my-kube-frontend'
 });
