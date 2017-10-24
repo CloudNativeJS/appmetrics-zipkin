@@ -73,7 +73,7 @@ HttpProbe.prototype.attach = function(name, target) {
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
 
-  var that = this;
+
   if (name == 'http') {
     if (target.__zipkinProbeAttached__) return target;
     target.__zipkinProbeAttached__ = true;
@@ -88,7 +88,7 @@ HttpProbe.prototype.attach = function(name, target) {
           var httpReq = args[0];
           var res = args[1];
           // Filter out urls where filter.to is ''
-          var traceUrl = that.filterUrl(httpReq);
+          var traceUrl = parse(httpReq.url);
           // console.log(util.inspect(httpReq));
           if (traceUrl !== '') {
             const method = httpReq.method;
@@ -134,5 +134,16 @@ HttpProbe.prototype.attach = function(name, target) {
   }
   return target;
 };
+/*
+ * Custom req.url parser that strips out any trailing query
+ */
+function parse(url) {
+  ['?', '#'].forEach(function(separator) {
+    var index = url.indexOf(separator);
+    if (index !== -1) url = url.substring(0, index);
+  });
+  return url;
+};
+
 
 module.exports = HttpProbe;

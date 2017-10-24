@@ -73,7 +73,6 @@ HttpsProbe.prototype.attach = function(name, target) {
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
 
-  var that = this;
   if (name == 'https') {
     if (target.__zipkinProbeAttached__) return target;
     target.__zipkinProbeAttached__ = true;
@@ -88,7 +87,7 @@ HttpsProbe.prototype.attach = function(name, target) {
           var httpsReq = args[0];
           var res = args[1];
           // Filter out urls where filter.to is ''
-          var traceUrl = that.filterUrl(httpsReq);
+          var traceUrl = parse(httpsReq.url);
           if (traceUrl !== '') {
             const method = httpsReq.method;
 
@@ -145,22 +144,5 @@ var parse = function(url) {
   return url;
 };
 
-/*
- * Ignore requests for URLs which we've been configured via regex to ignore
- */
-HttpsProbe.prototype.filterUrl = function(req) {
-  var resultUrl = parse(req.url);
-  var filters = this.config.filters;
-  if (filters.length == 0) return resultUrl;
-
-  var identifier = req.method + ' ' + resultUrl;
-  for (var i = 0; i < filters.length; ++i) {
-    var filter = filters[i];
-    if (filter.regex.test(identifier)) {
-      return filter.to;
-    }
-  }
-  return resultUrl;
-};
 
 module.exports = HttpsProbe;
