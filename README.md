@@ -35,7 +35,7 @@ app.listen(9000, () => {
 });
 ```
 
-**Note**: `require('appmetrics-zipkin')` should be included before requiring other packages to ensure those packages are correctly instrumented
+**Note**: `require('appmetrics-zipkin')` must be included before requiring other packages to ensure those packages are correctly instrumented. Failure to do can result in spans not being sent to the Zipkin server.
 
 ## Using Zipkin with Node.js and Kubernetes
 Deploy the Zipkin service with a given service name and exposure type, for example, naming the service `zipkin` and choosing to expose the service via the `NodePort` mechanism.
@@ -60,7 +60,7 @@ var appzip = require('appmetrics-zipkin')({
 });
 ```
 
-You can see if the environment variables are present with the following commands
+You can see if the environment variables are present with the following commands:
 
 `kubectl get pods` to discover the pod of your Zipkin deployment
 `kubectl exec -it *pod name* printenv | grep SERVICE`, e.g.
