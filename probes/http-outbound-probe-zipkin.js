@@ -41,12 +41,12 @@ if (semver.lt(process.version, '8.0.0')) {
 
 // Probe to instrument outbound http requests
 
-function HttpsOutboundProbe() {
-  Probe.call(this, 'https'); // match the name of the module we're instrumenting
+function HttpOutboundProbeZipkin() {
+  Probe.call(this, 'http'); // match the name of the module we're instrumenting
 }
-util.inherits(HttpsOutboundProbe, Probe);
+util.inherits(HttpOutboundProbeZipkin, Probe);
 
-HttpsOutboundProbe.prototype.attach = function(name, target) {
+HttpOutboundProbeZipkin.prototype.attach = function(name, target) {
   const tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
@@ -54,7 +54,7 @@ HttpsOutboundProbe.prototype.attach = function(name, target) {
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
   serviceName = this.serviceName;
-  if (name === 'https') {
+  if (name === 'http') {
     if (target.__zipkinOutboundProbeAttached__) return target;
     target.__zipkinOutboundProbeAttached__ = true;
     aspect.around(
@@ -109,33 +109,33 @@ HttpsOutboundProbe.prototype.attach = function(name, target) {
 
 // Get a URL as a string from the options object passed to http.get or http.request
 // See https://nodejs.org/api/http.html#http_http_request_options_callback
-function formatURL(httpsOptions) {
+function formatURL(httpOptions) {
   var url;
-  if (httpsOptions.protocol) {
-    url = httpsOptions.protocol;
+  if (httpOptions.protocol) {
+    url = httpOptions.protocol;
   } else {
-    url = 'https:';
+    url = 'http:';
   }
   url += '//';
-  if (httpsOptions.auth) {
-    url += httpsOptions.auth + '@';
+  if (httpOptions.auth) {
+    url += httpOptions.auth + '@';
   }
-  if (httpsOptions.host) {
-    url += httpsOptions.host;
-  } else if (httpsOptions.hostname) {
-    url += httpsOptions.hostname;
+  if (httpOptions.host) {
+    url += httpOptions.host;
+  } else if (httpOptions.hostname) {
+    url += httpOptions.hostname;
   } else {
     url += 'localhost';
   }
-  if (httpsOptions.port) {
-    url += ':' + httpsOptions.port;
+  if (httpOptions.port) {
+    url += ':' + httpOptions.port;
   }
-  if (httpsOptions.path) {
-    url += httpsOptions.path;
+  if (httpOptions.path) {
+    url += httpOptions.path;
   } else {
     url += '/';
   }
   return url;
 }
 
-module.exports = HttpsOutboundProbe;
+module.exports = HttpOutboundProbeZipkin;

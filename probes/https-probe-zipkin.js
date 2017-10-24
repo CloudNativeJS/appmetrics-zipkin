@@ -42,13 +42,13 @@ function hasZipkinHeader(httpsReq) {
 }
 
 
-function HttpsProbe() {
+function HttpsProbeZipkin() {
   Probe.call(this, 'https');
   this.config = {
     filters: [],
   };
 }
-util.inherits(HttpsProbe, Probe);
+util.inherits(HttpsProbeZipkin, Probe);
 
 
 function stringToBoolean(str) {
@@ -63,7 +63,7 @@ function stringToIntOption(str) {
   }
 }
 
-HttpsProbe.prototype.attach = function(name, target) {
+HttpsProbeZipkin.prototype.attach = function(name, target) {
   serviceName = this.serviceName;
 
   const tracer = new zipkin.Tracer({
@@ -73,6 +73,7 @@ HttpsProbe.prototype.attach = function(name, target) {
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
 
+  var that = this;
   if (name == 'https') {
     if (target.__zipkinProbeAttached__) return target;
     target.__zipkinProbeAttached__ = true;
@@ -81,8 +82,8 @@ HttpsProbe.prototype.attach = function(name, target) {
     aspect.before(target.Server.prototype, methods,
       function(obj, methodName, args, probeData) {
         if (args[0] !== 'request') return;
-        if (obj.__httpsProbe__) return;
-        obj.__httpsProbe__ = true;
+        if (obj.__zipkinhttpsProbe__) return;
+        obj.__zipkinhttpsProbe__ = true;
         aspect.aroundCallback(args, probeData, function(obj, args, probeData) {
           var httpsReq = args[0];
           var res = args[1];
@@ -145,4 +146,4 @@ var parse = function(url) {
 };
 
 
-module.exports = HttpsProbe;
+module.exports = HttpsProbeZipkin;

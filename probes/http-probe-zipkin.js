@@ -42,13 +42,13 @@ function hasZipkinHeader(httpReq) {
 }
 
 
-function HttpProbe() {
+function HttpProbeZipkin() {
   Probe.call(this, 'http');
   this.config = {
     filters: [],
   };
 }
-util.inherits(HttpProbe, Probe);
+util.inherits(HttpProbeZipkin, Probe);
 
 
 function stringToBoolean(str) {
@@ -63,7 +63,7 @@ function stringToIntOption(str) {
   }
 }
 
-HttpProbe.prototype.attach = function(name, target) {
+HttpProbeZipkin.prototype.attach = function(name, target) {
   serviceName = this.serviceName;
 
   const tracer = new zipkin.Tracer({
@@ -73,7 +73,7 @@ HttpProbe.prototype.attach = function(name, target) {
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
 
-
+  var that = this;
   if (name == 'http') {
     if (target.__zipkinProbeAttached__) return target;
     target.__zipkinProbeAttached__ = true;
@@ -82,8 +82,8 @@ HttpProbe.prototype.attach = function(name, target) {
     aspect.before(target.Server.prototype, methods,
       function(obj, methodName, args, probeData) {
         if (args[0] !== 'request') return;
-        if (obj.__httpProbe__) return;
-        obj.__httpProbe__ = true;
+        if (obj.__zipkinhttpProbe__) return;
+        obj.__zipkinhttpProbe__ = true;
         aspect.aroundCallback(args, probeData, function(obj, args, probeData) {
           var httpReq = args[0];
           var res = args[1];
@@ -92,7 +92,6 @@ HttpProbe.prototype.attach = function(name, target) {
           // console.log(util.inspect(httpReq));
           if (traceUrl !== '') {
             const method = httpReq.method;
-
             if (hasZipkinHeader(httpReq)) {
               const headers = httpReq.headers;
               var spanId = headers[(Header.SpanId).toLowerCase()];
@@ -123,7 +122,6 @@ HttpProbe.prototype.attach = function(name, target) {
             tracer.recordAnnotation(new Annotation.ServerRecv());
             tracer.recordAnnotation(new Annotation.LocalAddr(0));
 
-
             aspect.after(res, 'end', probeData, function(obj, methodName, args, probeData, ret) {
               tracer.recordBinary('http.status_code', res.statusCode.toString());
               tracer.recordAnnotation(new Annotation.ServerSend());
@@ -146,4 +144,4 @@ function parse(url) {
 };
 
 
-module.exports = HttpProbe;
+module.exports = HttpProbeZipkin;
