@@ -73,7 +73,6 @@ HttpProbeZipkin.prototype.attach = function(name, target) {
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
 
-  var that = this;
   if (name == 'http') {
     if (target.__zipkinProbeAttached__) return target;
     target.__zipkinProbeAttached__ = true;
