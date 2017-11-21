@@ -60,11 +60,13 @@ var appzip = require('appmetrics-zipkin')({
 });
 ```
 
-You can see if the environment variables are present with the following commands:
+You can see if the environment variables are present with the following commands.
 
-`kubectl get pods` to discover the pod of your Zipkin deployment
-`kubectl exec -it *pod name* printenv | grep SERVICE`, e.g.
+Use `kubectl get pods` to discover the pod of your Zipkin deployment.
 
+Use `kubectl exec -it <the pod name from above> printenv | grep SERVICE` to determine the environment variables present for the Zipkin service.
+
+Example output:
 ```
 [Node.js@IBM icp-nodejs-sample]$ kubectl exec -it test-zipkin-289126497-pjf5b printenv | grep SERVICE
 ZIPKIN_SERVICE_HOST=10.0.0.105
