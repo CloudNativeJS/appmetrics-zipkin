@@ -112,7 +112,8 @@ HttpsProbeZipkin.prototype.attach = function(name, target) {
             } else {
               tracer.setId(tracer.createRootId());
               probeData.traceId = tracer.id;
-              Request.addZipkinHeaders(args[0], tracer.id);
+              // Must assign new options back to args[0]
+              args[0] = Request.addZipkinHeaders(args[0], tracer.id);
             }
 
             tracer.recordServiceName(serviceName);

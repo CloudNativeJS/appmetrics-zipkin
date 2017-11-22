@@ -78,8 +78,8 @@ HttpsOutboundProbeZipkin.prototype.attach = function(name, target) {
             requestMethod = parsedOptions.method;
           }
         }
-
-        Request.addZipkinHeaders(methodArgs[0], tracer.createChildId());
+        // Must assign new options back to methodArgs[0]
+        methodArgs[0] = Request.addZipkinHeaders(methodArgs[0], tracer.createChildId());
         tracer.recordServiceName(serviceName);
         tracer.recordRpc(requestMethod);
         tracer.recordBinary('http.url', urlRequested);
