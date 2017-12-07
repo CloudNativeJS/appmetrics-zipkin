@@ -6,9 +6,9 @@
   "dependencies": {
     "properties-reader": "0.0.16",
     "tcp-ping": "^0.1.1",
-    "zipkin": "",
-    "zipkin-context-cls": "",
-    "zipkin-transport-http": ""
+    "zipkin": "0.10.1",
+    "zipkin-context-cls": "0.6.1",
+    "zipkin-transport-http": "0.10.1"
   },
   "devDependencies": {
     "eslint": "^3.14.1",
