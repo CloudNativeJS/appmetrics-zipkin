@@ -50,7 +50,7 @@ HttpsOutboundProbeZipkin.prototype.attach = function(name, target) {
   const tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
-    sampler: new zipkin.sampler.CountingSampler(0.01), // sample rate 0.01 will sample 1 % of all incoming requests
+    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
   serviceName = this.serviceName;

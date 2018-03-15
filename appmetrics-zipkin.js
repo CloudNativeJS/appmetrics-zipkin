@@ -53,12 +53,13 @@ module.exports = function(options) {
 
 function start(options) {
   // Set up the zipkin
-  var host, port, serviceName;
+  var host, port, serviceName, sampleRate;
 
   if (options) {
     host = options['host'];
     port = options['port'];
     serviceName = options['serviceName'];
+    sampleRate = options['sampleRate'];
   }
 
   // Uses properties from file if present
@@ -68,6 +69,12 @@ function start(options) {
     }
     if (properties.get('port')) {
       port = properties.get('port');
+    }
+    if (properties.get('serviceName')) {
+      serviceName = properties.get('serviceName');
+    }
+    if (properties.get('sampleRate')) {
+      sampleRate = properties.get('sampleRate');
     }
   }
 
@@ -79,6 +86,9 @@ function start(options) {
   }
   if (!port) {
     port = 9411;
+  }
+  if (!sampleRate) {
+    sampleRate = 1.0
   }
 
   // Test if the host & port are valid
