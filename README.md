@@ -9,21 +9,22 @@ Connecting to a [Zipkin](https://github.com/openzipkin/zipkin) endpoint is done 
 
 Alternatively, the hostname, port and service name (used by Zipkin to identify your application) can be added when including appmetrics-zipkin into your application:
 
-```
+```js
 var appzip = require('appmetrics-zipkin')({
   host: 'localhost',
   port: 9411,
-  serviceName:'frontend'
+  serviceName:'frontend',
+  sampleRate: 1.0
 });
 ```
 
 **Note**: The properties file has precedence over the inline settings
 
-If no configuration details are provided, the endpoint will be _localhost:9411_ and the serviceName will be set to the program name that requires appmetrics-zipkin.
+If no configuration details are provided, the endpoint will be _localhost:9411_, the serviceName will be set to the program name that requires appmetrics-zipkin and the sample rate will be 1.0 (100% of requests).
 
 
 ## Usage
-```
+```js
 var appzip = require('appmetrics-zipkin');
 var express = require('express');
 var app = express();
@@ -41,7 +42,8 @@ app.listen(9000, () => {
 Deploy the Zipkin service with a given service name and exposure type, for example, naming the service `zipkin` and choosing to expose the service via the `NodePort` mechanism.
 
 Your Node.js code to send Zipkin traffic to the discovered server would be as follows:
-```
+
+```js
 var zipkinHost = "localhost"
 var zipkinPort = 9411  
 
@@ -56,7 +58,8 @@ if (process.env.ZIPKIN_SERVICE_HOST && process.env.ZIPKIN_SERVICE_PORT) {
 var appzip = require('appmetrics-zipkin')({
   host: zipkinHost,
   port: zipkinPort,
-  serviceName:'my-kube-frontend'
+  serviceName:'my-kube-frontend',
+  sampleRate: 1.0
 });
 ```
 
