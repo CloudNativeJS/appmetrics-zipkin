@@ -88,7 +88,7 @@ function start(options) {
     port = 9411;
   }
   if (!sampleRate) {
-    sampleRate = 1.0
+    sampleRate = 1.0;
   }
 
   // Test if the host & port are valid
