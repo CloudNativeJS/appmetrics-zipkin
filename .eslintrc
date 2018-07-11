@@ -4,6 +4,11 @@
     "node": true
   },
   "parserOptions": { "ecmaVersion": 6 },
+  "globals": {
+    "describe": true,
+    "it": true,
+    "xit": true
+  },
   "rules": {
     "eqeqeq": "off",
     "max-len": ["error", 120, 8, {"ignoreComments": true}],
