@@ -1,4 +1,9 @@
 # appmetrics-zipkin
+<p align=center>
+<a href='http://CloudNativeJS.io/'><img src='https://img.shields.io/badge/homepage-CloudNativeJS-blue.svg'></a>
+<a href='http://github.com/CloudNativeJS/ModuleLTS'><img src='https://img.shields.io/badge/Module%20LTS-Adopted-brightgreen.svg?style=flat' alt='Module LTS Adopted' /></a> 
+<a href='http://ibm.biz/node-support'><img src='https://img.shields.io/badge/Support-IBM%20Frameworks-brightgreen.svg?style=flat' alt='IBM Support' /></a>   
+</p>
 
 appmetrics-zipkin provides [Zipkin](https://github.com/openzipkin/zipkin) instrumentation of Node.js applications using a single line: `require('appmetrics-zipkin')`. 
 
@@ -75,3 +80,18 @@ Example output:
 ZIPKIN_SERVICE_HOST=10.0.0.105
 ZIPKIN_SERVICE_PORT=9411
 ```
+
+## Module Long Term Support Policy
+
+This module adopts the [Module Long Term Support (LTS)](http://github.com/CloudNativeJS/ModuleLTS) policy, with the following End Of Life (EOL) dates:
+
+| Module Version   | Release Date | Minimum EOL | EOL With     | Status  |
+|------------------|--------------|-------------|--------------|---------|
+| V1.x.x	         | Oct 2017     | Dec 2019    |              | Current |
+
+
+
+
+## License
+
+  [Apache-2.0](LICENSE)
