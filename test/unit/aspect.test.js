@@ -2,7 +2,7 @@
 
 const { expect } = require('chai');
 const { stub } = require('sinon');
-const { before, after, around, findCallbackArg, aroundCallback } = require('../lib/aspect');
+const { before, after, around, findCallbackArg, aroundCallback } = require('../../lib/aspect');
 describe('aspect', () => {
   describe('before', () => {
     it('should call hook before target method', () => {
@@ -12,6 +12,15 @@ describe('aspect', () => {
       before(testObj, ['a'], hookStub);
       testObj.a();
       expect(hookStub.calledBefore(origStub)).to.be.ok;
+    });
+    it('should pass original arguments', () => {
+      const origStub = stub();
+      const hookStub = stub();
+      const testObj = { a: origStub };
+      before(testObj, ['a'], hookStub);
+      const testString = 'This is a test string';
+      testObj.a(testString);
+      expect(origStub.calledWith(testString)).to.be.ok;
     });
   });
   describe('after', () => {
