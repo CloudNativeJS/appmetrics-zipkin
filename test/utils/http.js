@@ -8,7 +8,7 @@ module.exports.request = ({ http, hostname, port }) => {
   });
 };
 
-module.exports.createServer = async ({ http, port }) => {
+module.exports.createServer = ({ http, port }) => {
   return new Promise((resolve) => {
     let server = http.createServer(function(req, res) {
       res.writeHead(200, { 'Content-Type': 'text/plain' });

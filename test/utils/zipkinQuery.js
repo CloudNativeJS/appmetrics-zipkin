@@ -4,15 +4,14 @@ const request = require('request-promise-native');
 
 const url = ({ zipkinHost, zipkinPort }) => `http://${zipkinHost}:${zipkinPort}`;
 
-module.exports.getTraces = async ({ zipkinHost, zipkinPort, serviceName }) => {
+module.exports.getTraces = ({ zipkinHost, zipkinPort, serviceName }) => {
   const zipkinUrl = url({ zipkinHost, zipkinPort });
-  const result = await request({
+  return request({
     url: `${zipkinUrl}/api/v1/traces`,
     qs: {
       serviceName
     },
     json: true
   });
-  return result;
 };
 
