@@ -41,7 +41,7 @@ describe('http requests', () => {
       if (server) server.close();
     });
     it('should reach zipkin', () => {
-      request({ http, hostname: 'localhost', port: 3000 })
+      return request({ http, hostname: 'localhost', port: 3000 })
         .then(waitAndGetTraces)
         .then((traces) => {
           expect(traces.length > 0).to.be.ok;
