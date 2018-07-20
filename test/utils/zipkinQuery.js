@@ -7,7 +7,7 @@ const url = ({ zipkinHost, zipkinPort }) => `http://${zipkinHost}:${zipkinPort}`
 module.exports.getTraces = ({ zipkinHost, zipkinPort, serviceName }) => {
   const zipkinUrl = url({ zipkinHost, zipkinPort });
   return request({
-    url: `${zipkinUrl}/api/v1/traces`,
+    url: `${zipkinUrl}/api/v2/traces`,
     qs: {
       serviceName
     },
