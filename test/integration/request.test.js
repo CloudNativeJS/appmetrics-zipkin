@@ -33,18 +33,24 @@ describe('http requests', () => {
 
       http = require('http');
       return createServer({ http, port: 3000 })
-      .then(createdServer => {
-        server = createdServer;
-      });
+        .then(createdServer => {
+          server = createdServer;
+        });
     });
     after(() => {
       if (server) server.close();
     });
     it('should reach zipkin', () => {
+      let outgoingTraceId;
       return request({ http, hostname: 'localhost', port: 3000 })
+        .then(({ request }) => {
+          const outgoingHeaders = request._headers;
+          outgoingTraceId = outgoingHeaders['x-b3-traceid'];
+        })
         .then(waitAndGetTraces)
         .then((traces) => {
           expect(traces.length > 0).to.be.ok;
+          expect(traces.some(trace => trace[0].traceId === outgoingTraceId)).to.be.ok;
         });
     });
   });
