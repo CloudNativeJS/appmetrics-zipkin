@@ -40,9 +40,22 @@ describe('http requests', () => {
     after(() => {
       if (server) server.close();
     });
-    it('should reach zipkin', () => {
+    xit('should reach zipkin with a simple http request (string options)', () => {
       let outgoingTraceId;
-      return request({ http, hostname: 'localhost', port: 3000 })
+      return request({ http, options: 'http://localhost:3000' })
+        .then(({ request }) => {
+          const outgoingHeaders = request._headers;
+          outgoingTraceId = outgoingHeaders['x-b3-traceid'];
+        })
+        .then(waitAndGetTraces)
+        .then((traces) => {
+          expect(traces.length > 0).to.be.ok;
+          expect(traces.some(trace => trace[0].traceId === outgoingTraceId)).to.be.ok;
+        });
+    });
+    it('should reach zipkin with a simple http request (object options)', () => {
+      let outgoingTraceId;
+      return request({ http, options: { hostname: 'localhost', port: 3000 } })
         .then(({ request }) => {
           const outgoingHeaders = request._headers;
           outgoingTraceId = outgoingHeaders['x-b3-traceid'];
