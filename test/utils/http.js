@@ -3,7 +3,7 @@
 module.exports.request = ({ http, hostname, port }) => {
   return new Promise(resolve => {
     http.get({ hostname: 'localhost', port }, (res) => {
-      resolve();
+      resolve({ request: res.req, response: res });
     });
   });
 };
