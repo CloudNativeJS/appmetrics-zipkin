@@ -1,8 +1,8 @@
 'use strict';
 
-module.exports.request = ({ http, hostname, port }) => {
+module.exports.request = ({ http, options }) => {
   return new Promise(resolve => {
-    http.get({ hostname: 'localhost', port }, (res) => {
+    http.get(options, (res) => {
       resolve({ request: res.req, response: res });
     });
   });
