@@ -10,12 +10,11 @@ const zipkinPort = 9411;
 const zipkinSampleRate = 1.0;
 const serviceName = 'frontend';
 
-async function waitAndGetTraces() {
+function waitAndGetTraces() {
   return new Promise(resolve => {
-    setTimeout(async () => { // We want to let all background requests going to zipkin complete
-      const traces = await getTraces({ zipkinHost, zipkinPort, serviceName });
-      resolve(traces);
-    });
+    setTimeout(() => { // We want to let all background requests going to zipkin complete
+      resolve(getTraces({ zipkinHost, zipkinPort, serviceName }));
+    }, 1000);
   });
 }
 
@@ -24,7 +23,7 @@ describe('http requests', () => {
     let server;
     let http;
 
-    before(async () => {
+    before(() => {
       require('../../')({
         host: zipkinHost,
         port: zipkinPort,
@@ -33,15 +32,20 @@ describe('http requests', () => {
       });
 
       http = require('http');
-      server = await createServer({ http, port: 3000 });
+      return createServer({ http, port: 3000 })
+      .then(createdServer => {
+        server = createdServer;
+      });
     });
     after(() => {
       if (server) server.close();
     });
-    it('should reach zipkin', async () => {
-      await request({ http, hostname: 'localhost', port: 3000 });
-      const traces = await waitAndGetTraces();
-      expect(traces.length > 0).to.be.ok;
+    it('should reach zipkin', () => {
+      request({ http, hostname: 'localhost', port: 3000 })
+        .then(waitAndGetTraces)
+        .then((traces) => {
+          expect(traces.length > 0).to.be.ok;
+        });
     });
   });
 });
