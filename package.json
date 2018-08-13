@@ -15,11 +15,14 @@
     "eslint": "^3.14.1",
     "eslint-config-strongloop": "^2.1.0",
     "mocha": "^5.2.0",
+    "request-promise-native": "1.0.5",
     "sinon": "^6.1.3",
     "tap": "^10.0.1"
   },
   "scripts": {
-    "test": "mocha test/",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "mocha test/unit/",
+    "test:integration": "mocha -t 3000 test/integration/",
     "pretest": "eslint .",
     "pretravis": "eslint .",
     "travis": ""
