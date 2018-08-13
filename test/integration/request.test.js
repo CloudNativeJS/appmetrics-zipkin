@@ -40,7 +40,7 @@ describe('http requests', () => {
     after(() => {
       if (server) server.close();
     });
-    xit('should reach zipkin with a simple http request (string options)', () => {
+    it('should reach zipkin with a simple http request (string options)', () => {
       let outgoingTraceId;
       return request({ http, options: 'http://localhost:3000' })
         .then(({ request }) => {
