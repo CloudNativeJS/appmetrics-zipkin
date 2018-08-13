@@ -77,9 +77,16 @@ HttpOutboundProbeZipkin.prototype.attach = function(name, target) {
           if (parsedOptions.method) {
             requestMethod = parsedOptions.method;
           }
+
+          // This converts the outgoing request's options to an object
+          // so that we can add headers onto it
+          methodArgs[0] = Object.assign({}, parsedOptions);
         }
-        // Must assign new options back to methodArgs[0]
-        methodArgs[0] = Request.addZipkinHeaders(options, tracer.createChildId());
+
+        if (!methodArgs[0].headers) methodArgs[0].headers = {};
+        let { headers } = Request.addZipkinHeaders(methodArgs[0], tracer.createChildId());
+        Object.assign(methodArgs[0].headers, { headers });
+
         tracer.recordServiceName(serviceName);
         tracer.recordRpc(requestMethod);
         tracer.recordBinary('http.url', urlRequested);
