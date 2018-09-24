@@ -23,6 +23,10 @@ var PropertyReader = require('properties-reader');
 var properties = PropertyReader(__dirname + '/appmetrics-zipkin.properties');
 var tcpp = require('tcp-ping');
 
+// create namespace
+const { createNamespace } = require('./lib/request-context.js');
+createNamespace('appmetrics-zipkin-ns');
+
 const {
   BatchRecorder
 } = require('zipkin');

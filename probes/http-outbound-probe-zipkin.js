@@ -20,6 +20,7 @@ var util = require('util');
 var url = require('url');
 var semver = require('semver');
 const zipkin = require('zipkin');
+const { getNamespace } = require('../lib/request-context.js');
 
 var serviceName;
 
@@ -81,6 +82,12 @@ HttpOutboundProbeZipkin.prototype.attach = function(name, target) {
           // This converts the outgoing request's options to an object
           // so that we can add headers onto it
           methodArgs[0] = Object.assign({}, parsedOptions);
+        }
+
+        // replace tracer from namespace
+        const namespace = getNamespace('appmetrics-zipkin-ns');
+        if (namespace) {
+          tracer.setId(namespace.get('tracer-id'));
         }
 
         if (!methodArgs[0].headers) methodArgs[0].headers = {};
