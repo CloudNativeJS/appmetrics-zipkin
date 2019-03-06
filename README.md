@@ -1,4 +1,7 @@
 # appmetrics-zipkin
+
+[![Greenkeeper badge](https://badges.greenkeeper.io/CloudNativeJS/appmetrics-zipkin.svg)](https://greenkeeper.io/)
+
 <p align=center>
 <a href='http://CloudNativeJS.io/'><img src='https://img.shields.io/badge/homepage-CloudNativeJS-blue.svg'></a>
 <a href='http://github.com/CloudNativeJS/ModuleLTS'><img src='https://img.shields.io/badge/Module%20LTS-Adopted-brightgreen.svg?style=flat' alt='Module LTS Adopted' /></a> 
