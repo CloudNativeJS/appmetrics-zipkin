@@ -21,6 +21,7 @@ var util = require('util');
 const zipkin = require('zipkin');
 
 var serviceName;
+var tracer;
 
 const {
   Request,
@@ -41,6 +42,10 @@ function hasZipkinHeader(httpsReq) {
   return headers[(Header.TraceId).toLowerCase()] !== undefined && headers[(Header.SpanId).toLowerCase()] !== undefined;
 }
 
+function hasJaegerHeader(httpReq) {
+  const headers = httpReq.headers || {};
+  return headers['ibm-apm-spancontext'] !== undefined;
+}
 
 function HttpsProbeZipkin() {
   Probe.call(this, 'https');
@@ -63,10 +68,21 @@ function stringToIntOption(str) {
   }
 }
 
+HttpsProbeZipkin.prototype.updateProbes = function() {
+  serviceName = this.serviceName;
+  tracer = new zipkin.Tracer({
+    ctxImpl,
+    recorder: this.recorder,
+    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
+    traceId128Bit: true // to generate 128-bit trace IDs.
+  });
+};
+
+
 HttpsProbeZipkin.prototype.attach = function(name, target) {
   serviceName = this.serviceName;
 
-  const tracer = new zipkin.Tracer({
+  tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
     sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
@@ -89,9 +105,31 @@ HttpsProbeZipkin.prototype.attach = function(name, target) {
           // Filter out urls where filter.to is ''
           var traceUrl = parse(httpsReq.url);
           if (traceUrl !== '') {
-            const method = httpsReq.method;
+            var reqMethod = httpsReq.method;
+            if (reqMethod.toUpperCase() === 'OPTIONS' && httpsReq.headers['access-control-request-method']) {
+              reqMethod = httpsReq.headers['access-control-request-method'];
+            }
+            if (hasJaegerHeader(httpsReq)) {
+              const headers = httpsReq.headers;
+              var jaegerHeader = headers['ibm-apm-spancontext'];
+              console.info('http ibm-apm-spancontext:', jaegerHeader);
+              var headerKeys = jaegerHeader.split(':');
+              var jaegerSpanId = headerKeys[1];
+              if (jaegerSpanId !== undefined) {
+                const traceId = new Some(headerKeys[0]);
+                const parentSpanId = new Some(headerKeys[2]);
+                const flags = (new Some(headerKeys[3])).flatMap(stringToIntOption).getOrElse(0);
 
-            if (hasZipkinHeader(httpsReq)) {
+                var id_byJaeger = new TraceId({
+                  traceId: traceId,
+                  parentId: parentSpanId,
+                  spanId: jaegerSpanId,
+                  flags
+                });
+                tracer.setId(id_byJaeger);
+                probeData.traceId = tracer.id;
+              }
+            } else if (hasZipkinHeader(httpsReq)) {
               const headers = httpsReq.headers;
               var spanId = headers[(Header.SpanId).toLowerCase()];
               if (spanId !== undefined) {
@@ -116,16 +154,18 @@ HttpsProbeZipkin.prototype.attach = function(name, target) {
               args[0] = Request.addZipkinHeaders(args[0], tracer.id);
             }
 
-            tracer.recordServiceName(serviceName);
-            tracer.recordRpc(method.toUpperCase());
-            tracer.recordBinary('http.url', httpsReq.headers.host + traceUrl);
-            tracer.recordAnnotation(new Annotation.ServerRecv());
-            tracer.recordAnnotation(new Annotation.LocalAddr(0));
 
+            tracer.recordBinary('http.url', httpReq.headers.host + traceUrl);
+            tracer.recordAnnotation(new Annotation.ServerRecv());
+            console.info('https-tracer(before): ', tracer.id);
 
             aspect.after(res, 'end', probeData, function(obj, methodName, args, probeData, ret) {
+              tracer.recordServiceName(serviceName);
+              tracer.recordRpc(reqMethod.toUpperCase() + ' ' + traceUrl);
+              tracer.recordAnnotation(new Annotation.LocalAddr(0));
               tracer.recordBinary('http.status_code', res.statusCode.toString());
               tracer.recordAnnotation(new Annotation.ServerSend());
+              console.info('https-tracer(after): ', tracer.id);
             });
           }
         });

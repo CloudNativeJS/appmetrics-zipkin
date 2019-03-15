@@ -119,6 +119,30 @@ function start(options) {
   });
 }
 
+module.exports.update = function(options) {
+  start(options);
+  // for (var i = 0; i < probes.length; i++) {
+  //   probes[i].updateServiceName(probes[i].serviceName);
+  // }
+  probes.forEach(function(probe) {
+    probe.updateProbes();
+    //    probe.enableRequests();
+  });
+};
+
+module.exports.stop = function(){
+  probes.forEach(function(probe) {
+    probe.stop();
+    //    probe.enableRequests();
+  });
+};
+
+module.exports.disable = function(){
+  probes.forEach(function(probe) {
+    probe.disable();
+    //    probe.enableRequests();
+  });
+};
 /*
  * Patch the module require function to run the probe attach function
  * for any matching module. This loads the monitoring probes into the modules

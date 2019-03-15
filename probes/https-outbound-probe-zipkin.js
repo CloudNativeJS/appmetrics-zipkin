@@ -22,6 +22,7 @@ var semver = require('semver');
 const zipkin = require('zipkin');
 
 var serviceName;
+var tracer;
 
 const {
   Request,
@@ -46,8 +47,34 @@ function HttpsOutboundProbeZipkin() {
 }
 util.inherits(HttpsOutboundProbeZipkin, Probe);
 
+
+HttpsOutboundProbeZipkin.prototype.updateProbes = function() {
+  serviceName = this.serviceName;
+  tracer = new zipkin.Tracer({
+    ctxImpl,
+    recorder: this.recorder,
+    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
+    traceId128Bit: true // to generate 128-bit trace IDs.
+  });
+};
+
+function addJaegerHeaders(req, traceId) {
+  const headers = req.headers || {};
+
+  var headerKeys = [
+    traceId.traceId,
+    traceId.spanId,
+    traceId._parentId.value ? traceId._parentId.value : '0',
+    traceId.sampled.value ? 1 : 0
+  ];
+  headers['ibm-apm-spancontext'] = headerKeys.join(':');
+  console.info('http-outbound ibm-apm-spancontext: ', headers['ibm-apm-spancontext']);
+
+  return Object.assign({}, req, {headers});
+}
+
 HttpsOutboundProbeZipkin.prototype.attach = function(name, target) {
-  const tracer = new zipkin.Tracer({
+  tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
     sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
@@ -79,11 +106,15 @@ HttpsOutboundProbeZipkin.prototype.attach = function(name, target) {
           }
         }
         // Must assign new options back to methodArgs[0]
-        methodArgs[0] = Request.addZipkinHeaders(methodArgs[0], tracer.createChildId());
+        // methodArgs[0] = Request.addZipkinHeaders(methodArgs[0], tracer.createChildId());
+        let { headers } = addJaegerHeaders(methodArgs[0], tracer.createChildId());
+        Object.assign(methodArgs[0].headers, { headers });
+
         tracer.recordServiceName(serviceName);
-        tracer.recordRpc(requestMethod);
+        tracer.recordRpc(requestMethod + ' ' + urlRequested);
         tracer.recordBinary('http.url', urlRequested);
         tracer.recordAnnotation(new Annotation.ClientSend());
+        console.info('send https-outbound-tracer(before): ', tracer.id);
         // End metrics
         aspect.aroundCallback(
           methodArgs,
@@ -91,6 +122,7 @@ HttpsOutboundProbeZipkin.prototype.attach = function(name, target) {
           function(target, args, probeData) {
             tracer.recordBinary('http.status_code', target.res.statusCode.toString());
             tracer.recordAnnotation(new Annotation.ClientRecv());
+            console.info('send https-outbound-tracer(aroundCallback): ', tracer.id);
           },
           function(target, args, probeData, ret) {
             return ret;
@@ -124,11 +156,14 @@ function formatURL(httpsOptions) {
     url += httpsOptions.host;
   } else if (httpsOptions.hostname) {
     url += httpsOptions.hostname;
+    if (httpsOptions.port) {
+      url += ':' + httpsOptions.port;
+    }
   } else {
     url += 'localhost';
-  }
-  if (httpsOptions.port) {
-    url += ':' + httpsOptions.port;
+    if (httpsOptions.port) {
+      url += ':' + httpsOptions.port;
+    }
   }
   if (httpsOptions.path) {
     url += httpsOptions.path;

@@ -21,6 +21,7 @@ var util = require('util');
 const zipkin = require('zipkin');
 
 var serviceName;
+var tracer;
 
 const {
   Request,
@@ -41,6 +42,10 @@ function hasZipkinHeader(httpReq) {
   return headers[(Header.TraceId).toLowerCase()] !== undefined && headers[(Header.SpanId).toLowerCase()] !== undefined;
 }
 
+function hasJaegerHeader(httpReq) {
+  const headers = httpReq.headers || {};
+  return headers['ibm-apm-spancontext'] !== undefined;
+}
 
 function HttpProbeZipkin() {
   Probe.call(this, 'http');
@@ -63,10 +68,20 @@ function stringToIntOption(str) {
   }
 }
 
+HttpProbeZipkin.prototype.updateProbes = function() {
+  serviceName = this.serviceName;
+  tracer = new zipkin.Tracer({
+    ctxImpl,
+    recorder: this.recorder,
+    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
+    traceId128Bit: true // to generate 128-bit trace IDs.
+  });
+};
+
 HttpProbeZipkin.prototype.attach = function(name, target) {
   serviceName = this.serviceName;
 
-  const tracer = new zipkin.Tracer({
+  tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
     sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
@@ -90,8 +105,31 @@ HttpProbeZipkin.prototype.attach = function(name, target) {
           var traceUrl = parse(httpReq.url);
           // console.log(util.inspect(httpReq));
           if (traceUrl !== '') {
-            const method = httpReq.method;
-            if (hasZipkinHeader(httpReq)) {
+            var reqMethod = httpReq.method;
+            if (reqMethod.toUpperCase() === 'OPTIONS' && httpReq.headers['access-control-request-method']) {
+              reqMethod = httpReq.headers['access-control-request-method'];
+            }
+            if (hasJaegerHeader(httpReq)) {
+              const headers = httpReq.headers;
+              var jaegerHeader = headers['ibm-apm-spancontext'];
+              console.info('http ibm-apm-spancontext:', jaegerHeader);
+              var headerKeys = jaegerHeader.split(':');
+              var jaegerSpanId = headerKeys[1];
+              if (jaegerSpanId !== undefined) {
+                const traceId = new Some(headerKeys[0]);
+                const parentSpanId = new Some(headerKeys[2]);
+                const flags = (new Some(headerKeys[3])).flatMap(stringToIntOption).getOrElse(0);
+
+                var id_byJaeger = new TraceId({
+                  traceId: traceId,
+                  parentId: parentSpanId,
+                  spanId: jaegerSpanId,
+                  flags
+                });
+                tracer.setId(id_byJaeger);
+                probeData.traceId = tracer.id;
+              }
+            } else if (hasZipkinHeader(httpReq)) {
               const headers = httpReq.headers;
               var spanId = headers[(Header.SpanId).toLowerCase()];
               if (spanId !== undefined) {
@@ -116,16 +154,17 @@ HttpProbeZipkin.prototype.attach = function(name, target) {
               const { headers } = Request.addZipkinHeaders(args[0], tracer.id);
               Object.assign(args[0].headers, headers);
             }
-
-            tracer.recordServiceName(serviceName);
-            tracer.recordRpc(method.toUpperCase());
             tracer.recordBinary('http.url', httpReq.headers.host + traceUrl);
             tracer.recordAnnotation(new Annotation.ServerRecv());
-            tracer.recordAnnotation(new Annotation.LocalAddr(0));
-
+            console.info('http-tracer(before): ', tracer.id);
             aspect.after(res, 'end', probeData, function(obj, methodName, args, probeData, ret) {
+
+              tracer.recordServiceName(serviceName);
+              tracer.recordRpc(reqMethod.toUpperCase() + ' ' + traceUrl);
+              tracer.recordAnnotation(new Annotation.LocalAddr(0));
               tracer.recordBinary('http.status_code', res.statusCode.toString());
               tracer.recordAnnotation(new Annotation.ServerSend());
+              console.info('http-tracer(after): ', tracer.id);
             });
           }
         });
