@@ -23,7 +23,6 @@ var semver = require('semver');
 const zipkin = require('zipkin');
 
 var serviceName;
-var tracer;
 var ibmapmContext;
 
 const {
@@ -53,16 +52,10 @@ util.inherits(HttpsOutboundProbeZipkin, Probe);
 HttpsOutboundProbeZipkin.prototype.updateProbes = function() {
   serviceName = this.serviceName;
   ibmapmContext = this.ibmapmContext;
-  tracer = new zipkin.Tracer({
-    ctxImpl,
-    recorder: this.recorder,
-    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
-    traceId128Bit: true // to generate 128-bit trace IDs.
-  });
 };
 
 HttpsOutboundProbeZipkin.prototype.attach = function(name, target) {
-  tracer = new zipkin.Tracer({
+  const tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
     sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests

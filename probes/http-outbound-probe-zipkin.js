@@ -24,7 +24,6 @@ const zipkin = require('zipkin');
 
 var serviceName;
 var ibmapmContext;
-var tracer;
 
 const {
   Request,
@@ -52,17 +51,11 @@ util.inherits(HttpOutboundProbeZipkin, Probe);
 HttpOutboundProbeZipkin.prototype.updateProbes = function() {
   serviceName = this.serviceName;
   ibmapmContext = this.ibmapmContext;
-  tracer = new zipkin.Tracer({
-    ctxImpl,
-    recorder: this.recorder,
-    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
-    traceId128Bit: true // to generate 128-bit trace IDs.
-  });
 };
 
 
 HttpOutboundProbeZipkin.prototype.attach = function(name, target) {
-  tracer = new zipkin.Tracer({
+  const tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
     sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
@@ -99,9 +92,11 @@ HttpOutboundProbeZipkin.prototype.attach = function(name, target) {
         }
 
         if (!methodArgs[0].headers) methodArgs[0].headers = {};
-        // let { headers } = Request.addZipkinHeaders(methodArgs[0], tracer.createChildId());
-        let { headers } = tool.addJaegerHeaders(methodArgs[0], tracer.createChildId(), 'http-outbound');
+        var childId = tracer.createChildId();
+        // let { headers } = Request.addZipkinHeaders(methodArgs[0], childId);
+        let { headers } = tool.addJaegerHeaders(methodArgs[0], childId, 'http-outbound');
         Object.assign(methodArgs[0].headers, { headers });
+        tracer.setId(childId);
 
         tracer.recordServiceName(serviceName);
         tracer.recordRpc(requestMethod + ' ' + urlRequested);

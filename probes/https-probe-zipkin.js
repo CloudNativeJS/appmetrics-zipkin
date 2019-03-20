@@ -22,7 +22,6 @@ var tool = require('../lib/tools.js');
 const zipkin = require('zipkin');
 
 var serviceName;
-var tracer;
 var ibmapmContext;
 
 const {
@@ -68,19 +67,13 @@ function stringToIntOption(str) {
 HttpsProbeZipkin.prototype.updateProbes = function() {
   serviceName = this.serviceName;
   ibmapmContext = this.ibmapmContext;
-  tracer = new zipkin.Tracer({
-    ctxImpl,
-    recorder: this.recorder,
-    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
-    traceId128Bit: true // to generate 128-bit trace IDs.
-  });
 };
 
 
 HttpsProbeZipkin.prototype.attach = function(name, target) {
   serviceName = this.serviceName;
 
-  tracer = new zipkin.Tracer({
+  const tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
     sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests

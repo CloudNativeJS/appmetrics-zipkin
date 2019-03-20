@@ -22,7 +22,6 @@ var util = require('util');
 const zipkin = require('zipkin');
 
 var serviceName;
-var tracer;
 var ibmapmContext;
 
 const {
@@ -68,18 +67,12 @@ function stringToIntOption(str) {
 HttpProbeZipkin.prototype.updateProbes = function() {
   serviceName = this.serviceName;
   ibmapmContext = this.ibmapmContext;
-  tracer = new zipkin.Tracer({
-    ctxImpl,
-    recorder: this.recorder,
-    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
-    traceId128Bit: true // to generate 128-bit trace IDs.
-  });
 };
 
 HttpProbeZipkin.prototype.attach = function(name, target) {
   serviceName = this.serviceName;
 
-  tracer = new zipkin.Tracer({
+  const tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
     sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
@@ -152,11 +145,12 @@ HttpProbeZipkin.prototype.attach = function(name, target) {
               const { headers } = Request.addZipkinHeaders(args[0], tracer.id);
               Object.assign(args[0].headers, headers);
             }
+            var serverTracerId = tracer.id;
             tracer.recordBinary('http.url', httpReq.headers.host + traceUrl);
             tracer.recordAnnotation(new Annotation.ServerRecv());
             console.info('http-tracer(before): ', tracer.id);
             aspect.after(res, 'end', probeData, function(obj, methodName, args, probeData, ret) {
-
+              tracer.setId(serverTracerId);
               tracer.recordServiceName(serviceName);
               tracer.recordRpc(reqMethod.toUpperCase() + ' ' + traceUrl);
               tracer.recordAnnotation(new Annotation.LocalAddr(0));
