@@ -16,6 +16,7 @@
 'use strict';
 var Probe = require('../lib/probe.js');
 var aspect = require('../lib/aspect.js');
+var tool = require('../lib/tools.js');
 var util = require('util');
 var url = require('url');
 var semver = require('semver');
@@ -23,6 +24,7 @@ const zipkin = require('zipkin');
 
 var serviceName;
 var tracer;
+var ibmapmContext;
 
 const {
   Request,
@@ -50,6 +52,7 @@ util.inherits(HttpsOutboundProbeZipkin, Probe);
 
 HttpsOutboundProbeZipkin.prototype.updateProbes = function() {
   serviceName = this.serviceName;
+  ibmapmContext = this.ibmapmContext;
   tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
@@ -57,21 +60,6 @@ HttpsOutboundProbeZipkin.prototype.updateProbes = function() {
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
 };
-
-function addJaegerHeaders(req, traceId) {
-  const headers = req.headers || {};
-
-  var headerKeys = [
-    traceId.traceId,
-    traceId.spanId,
-    traceId._parentId.value ? traceId._parentId.value : '0',
-    traceId.sampled.value ? 1 : 0
-  ];
-  headers['ibm-apm-spancontext'] = headerKeys.join(':');
-  console.info('http-outbound ibm-apm-spancontext: ', headers['ibm-apm-spancontext']);
-
-  return Object.assign({}, req, {headers});
-}
 
 HttpsOutboundProbeZipkin.prototype.attach = function(name, target) {
   tracer = new zipkin.Tracer({
@@ -107,12 +95,13 @@ HttpsOutboundProbeZipkin.prototype.attach = function(name, target) {
         }
         // Must assign new options back to methodArgs[0]
         // methodArgs[0] = Request.addZipkinHeaders(methodArgs[0], tracer.createChildId());
-        let { headers } = addJaegerHeaders(methodArgs[0], tracer.createChildId());
+        let { headers } = tool.addJaegerHeaders(methodArgs[0], tracer.createChildId(), 'https-outbound');
         Object.assign(methodArgs[0].headers, { headers });
 
         tracer.recordServiceName(serviceName);
         tracer.recordRpc(requestMethod + ' ' + urlRequested);
         tracer.recordBinary('http.url', urlRequested);
+        tool.recordIbmapmContext(tracer, ibmapmContext);
         tracer.recordAnnotation(new Annotation.ClientSend());
         console.info('send https-outbound-tracer(before): ', tracer.id);
         // End metrics

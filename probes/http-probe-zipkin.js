@@ -17,11 +17,13 @@
 
 var Probe = require('../lib/probe.js');
 var aspect = require('../lib/aspect.js');
+var tool = require('../lib/tools.js');
 var util = require('util');
 const zipkin = require('zipkin');
 
 var serviceName;
 var tracer;
+var ibmapmContext;
 
 const {
   Request,
@@ -40,11 +42,6 @@ const ctxImpl = new CLSContext();
 function hasZipkinHeader(httpReq) {
   const headers = httpReq.headers || {};
   return headers[(Header.TraceId).toLowerCase()] !== undefined && headers[(Header.SpanId).toLowerCase()] !== undefined;
-}
-
-function hasJaegerHeader(httpReq) {
-  const headers = httpReq.headers || {};
-  return headers['ibm-apm-spancontext'] !== undefined;
 }
 
 function HttpProbeZipkin() {
@@ -70,6 +67,7 @@ function stringToIntOption(str) {
 
 HttpProbeZipkin.prototype.updateProbes = function() {
   serviceName = this.serviceName;
+  ibmapmContext = this.ibmapmContext;
   tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
@@ -109,7 +107,7 @@ HttpProbeZipkin.prototype.attach = function(name, target) {
             if (reqMethod.toUpperCase() === 'OPTIONS' && httpReq.headers['access-control-request-method']) {
               reqMethod = httpReq.headers['access-control-request-method'];
             }
-            if (hasJaegerHeader(httpReq)) {
+            if (tool.hasJaegerHeader(httpReq)) {
               const headers = httpReq.headers;
               var jaegerHeader = headers['ibm-apm-spancontext'];
               console.info('http ibm-apm-spancontext:', jaegerHeader);
@@ -163,6 +161,7 @@ HttpProbeZipkin.prototype.attach = function(name, target) {
               tracer.recordRpc(reqMethod.toUpperCase() + ' ' + traceUrl);
               tracer.recordAnnotation(new Annotation.LocalAddr(0));
               tracer.recordBinary('http.status_code', res.statusCode.toString());
+              tool.recordIbmapmContext(tracer, ibmapmContext);
               tracer.recordAnnotation(new Annotation.ServerSend());
               console.info('http-tracer(after): ', tracer.id);
             });
@@ -182,6 +181,5 @@ function parse(url) {
   });
   return url;
 };
-
 
 module.exports = HttpProbeZipkin;

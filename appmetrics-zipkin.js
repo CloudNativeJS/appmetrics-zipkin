@@ -130,6 +130,20 @@ module.exports.update = function(options) {
   });
 };
 
+module.exports.updateServiceName = function(serviceName){
+  probes.forEach(function(probe) {
+    probe.setServiceName(serviceName);
+    probe.updateProbes();
+  });
+}
+
+module.exports.updateIbmapmContext = function(context) {
+  probes.forEach(function(probe) {
+    probe.setIbmapmContext(context);
+    probe.updateProbes();
+  });
+}
+
 module.exports.stop = function(){
   probes.forEach(function(probe) {
     probe.stop();

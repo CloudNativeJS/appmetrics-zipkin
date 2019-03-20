@@ -16,12 +16,14 @@
 'use strict';
 var Probe = require('../lib/probe.js');
 var aspect = require('../lib/aspect.js');
+var tool = require('../lib/tools.js');
 var util = require('util');
 var url = require('url');
 var semver = require('semver');
 const zipkin = require('zipkin');
 
 var serviceName;
+var ibmapmContext;
 var tracer;
 
 const {
@@ -49,6 +51,7 @@ util.inherits(HttpOutboundProbeZipkin, Probe);
 
 HttpOutboundProbeZipkin.prototype.updateProbes = function() {
   serviceName = this.serviceName;
+  ibmapmContext = this.ibmapmContext;
   tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
@@ -57,20 +60,6 @@ HttpOutboundProbeZipkin.prototype.updateProbes = function() {
   });
 };
 
-function addJaegerHeaders(req, traceId) {
-  const headers = req.headers || {};
-
-  var headerKeys = [
-    traceId.traceId,
-    traceId.spanId,
-    traceId._parentId.value ? traceId._parentId.value : '0',
-    traceId.sampled.value ? 1 : 0
-  ];
-  headers['ibm-apm-spancontext'] = headerKeys.join(':');
-  console.info('http-outbound ibm-apm-spancontext: ', headers['ibm-apm-spancontext']);
-
-  return Object.assign({}, req, {headers});
-}
 
 HttpOutboundProbeZipkin.prototype.attach = function(name, target) {
   tracer = new zipkin.Tracer({
@@ -111,12 +100,13 @@ HttpOutboundProbeZipkin.prototype.attach = function(name, target) {
 
         if (!methodArgs[0].headers) methodArgs[0].headers = {};
         // let { headers } = Request.addZipkinHeaders(methodArgs[0], tracer.createChildId());
-        let { headers } = addJaegerHeaders(methodArgs[0], tracer.createChildId());
+        let { headers } = tool.addJaegerHeaders(methodArgs[0], tracer.createChildId(), 'http-outbound');
         Object.assign(methodArgs[0].headers, { headers });
 
         tracer.recordServiceName(serviceName);
         tracer.recordRpc(requestMethod + ' ' + urlRequested);
         tracer.recordBinary('http.url', urlRequested);
+        tool.recordIbmapmContext(tracer, ibmapmContext);
         tracer.recordAnnotation(new Annotation.ClientSend());
         console.info('send http-outbound-tracer(before): ', tracer.id);
         // End metrics

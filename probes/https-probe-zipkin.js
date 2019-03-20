@@ -18,10 +18,12 @@
 var Probe = require('../lib/probe.js');
 var aspect = require('../lib/aspect.js');
 var util = require('util');
+var tool = require('../lib/tools.js');
 const zipkin = require('zipkin');
 
 var serviceName;
 var tracer;
+var ibmapmContext;
 
 const {
   Request,
@@ -40,11 +42,6 @@ const ctxImpl = new CLSContext();
 function hasZipkinHeader(httpsReq) {
   const headers = httpsReq.headers || {};
   return headers[(Header.TraceId).toLowerCase()] !== undefined && headers[(Header.SpanId).toLowerCase()] !== undefined;
-}
-
-function hasJaegerHeader(httpReq) {
-  const headers = httpReq.headers || {};
-  return headers['ibm-apm-spancontext'] !== undefined;
 }
 
 function HttpsProbeZipkin() {
@@ -70,6 +67,7 @@ function stringToIntOption(str) {
 
 HttpsProbeZipkin.prototype.updateProbes = function() {
   serviceName = this.serviceName;
+  ibmapmContext = this.ibmapmContext;
   tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
@@ -109,7 +107,7 @@ HttpsProbeZipkin.prototype.attach = function(name, target) {
             if (reqMethod.toUpperCase() === 'OPTIONS' && httpsReq.headers['access-control-request-method']) {
               reqMethod = httpsReq.headers['access-control-request-method'];
             }
-            if (hasJaegerHeader(httpsReq)) {
+            if (tool.hasJaegerHeader(httpsReq)) {
               const headers = httpsReq.headers;
               var jaegerHeader = headers['ibm-apm-spancontext'];
               console.info('http ibm-apm-spancontext:', jaegerHeader);
@@ -155,7 +153,7 @@ HttpsProbeZipkin.prototype.attach = function(name, target) {
             }
 
 
-            tracer.recordBinary('http.url', httpReq.headers.host + traceUrl);
+            tracer.recordBinary('http.url', httpsReq.headers.host + traceUrl);
             tracer.recordAnnotation(new Annotation.ServerRecv());
             console.info('https-tracer(before): ', tracer.id);
 
@@ -164,6 +162,7 @@ HttpsProbeZipkin.prototype.attach = function(name, target) {
               tracer.recordRpc(reqMethod.toUpperCase() + ' ' + traceUrl);
               tracer.recordAnnotation(new Annotation.LocalAddr(0));
               tracer.recordBinary('http.status_code', res.statusCode.toString());
+              tool.recordIbmapmContext(tracer, ibmapmContext);
               tracer.recordAnnotation(new Annotation.ServerSend());
               console.info('https-tracer(after): ', tracer.id);
             });
@@ -184,6 +183,5 @@ var parse = function(url) {
   });
   return url;
 };
-
 
 module.exports = HttpsProbeZipkin;
