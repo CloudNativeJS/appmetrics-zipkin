@@ -24,6 +24,8 @@ const zipkin = require('zipkin');
 
 var serviceName;
 var ibmapmContext;
+var headerFilters;
+var pathFilters;
 
 const {
   Request,
@@ -52,6 +54,8 @@ util.inherits(HttpsOutboundProbeZipkin, Probe);
 HttpsOutboundProbeZipkin.prototype.updateProbes = function() {
   serviceName = this.serviceName;
   ibmapmContext = this.ibmapmContext;
+  headerFilters = this.headerFilters;
+  pathFilters = this.pathFilters;
 };
 
 HttpsOutboundProbeZipkin.prototype.attach = function(name, target) {
@@ -75,6 +79,9 @@ HttpsOutboundProbeZipkin.prototype.attach = function(name, target) {
         var requestMethod = 'GET';
         var urlRequested = '';
         if (typeof options === 'object') {
+          if (tool.isIcamInternalRequest(options, headerFilters, pathFilters)){
+            return;
+          }
           urlRequested = formatURL(options);
           if (options.method) {
             requestMethod = options.method;
@@ -86,6 +93,7 @@ HttpsOutboundProbeZipkin.prototype.attach = function(name, target) {
             requestMethod = parsedOptions.method;
           }
         }
+
         // Must assign new options back to methodArgs[0]
         // methodArgs[0] = Request.addZipkinHeaders(methodArgs[0], tracer.createChildId());
         let { headers } = tool.addJaegerHeaders(methodArgs[0], tracer.createChildId(), 'https-outbound');
@@ -102,6 +110,7 @@ HttpsOutboundProbeZipkin.prototype.attach = function(name, target) {
           methodArgs,
           probeData,
           function(target, args, probeData) {
+            console.info('confirm:', urlRequested);
             tracer.recordBinary('http.status_code', target.res.statusCode.toString());
             tracer.recordAnnotation(new Annotation.ClientRecv());
             console.info('send https-outbound-tracer(aroundCallback): ', tracer.id);

@@ -135,14 +135,32 @@ module.exports.updateServiceName = function(serviceName){
     probe.setServiceName(serviceName);
     probe.updateProbes();
   });
-}
+};
+
+module.exports.updatePathFilter = function(paths){
+  console.info('updatePathFilter', paths);
+  probes.forEach(function(probe) {
+    probe.setPathFilter(paths);
+    probe.updateProbes();
+  });
+};
+
+
+module.exports.updateHeaderFilter = function(headers){
+  console.info('updateHeaderFilter', headers);
+  probes.forEach(function(probe) {
+    probe.setHeaderFilter(headers);
+    probe.updateProbes();
+  });
+};
+
 
 module.exports.updateIbmapmContext = function(context) {
   probes.forEach(function(probe) {
     probe.setIbmapmContext(context);
     probe.updateProbes();
   });
-}
+};
 
 module.exports.stop = function(){
   probes.forEach(function(probe) {
