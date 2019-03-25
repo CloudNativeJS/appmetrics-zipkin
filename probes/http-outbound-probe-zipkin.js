@@ -101,8 +101,7 @@ HttpOutboundProbeZipkin.prototype.attach = function(name, target) {
 
         if (!methodArgs[0].headers) methodArgs[0].headers = {};
         var childId = tracer.createChildId();
-        // let { headers } = Request.addZipkinHeaders(methodArgs[0], childId);
-        let { headers } = tool.addJaegerHeaders(methodArgs[0], childId, 'http-outbound');
+        let { headers } = Request.addZipkinHeaders(methodArgs[0], childId);
         Object.assign(methodArgs[0].headers, { headers });
         tracer.setId(childId);
 

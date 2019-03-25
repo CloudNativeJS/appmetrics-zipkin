@@ -95,8 +95,7 @@ HttpsOutboundProbeZipkin.prototype.attach = function(name, target) {
         }
 
         // Must assign new options back to methodArgs[0]
-        // methodArgs[0] = Request.addZipkinHeaders(methodArgs[0], tracer.createChildId());
-        let { headers } = tool.addJaegerHeaders(methodArgs[0], tracer.createChildId(), 'https-outbound');
+        let { headers } = Request.addZipkinHeaders(methodArgs[0], tracer.createChildId());
         Object.assign(methodArgs[0].headers, { headers });
 
         tracer.recordServiceName(serviceName);

@@ -100,27 +100,7 @@ HttpsProbeZipkin.prototype.attach = function(name, target) {
             if (reqMethod.toUpperCase() === 'OPTIONS' && httpsReq.headers['access-control-request-method']) {
               reqMethod = httpsReq.headers['access-control-request-method'];
             }
-            if (tool.hasJaegerHeader(httpsReq)) {
-              const headers = httpsReq.headers;
-              var jaegerHeader = headers['ibm-apm-spancontext'];
-              console.info('http ibm-apm-spancontext:', jaegerHeader);
-              var headerKeys = jaegerHeader.split(':');
-              var jaegerSpanId = headerKeys[1];
-              if (jaegerSpanId !== undefined) {
-                const traceId = new Some(headerKeys[0]);
-                const parentSpanId = new Some(headerKeys[2]);
-                const flags = (new Some(headerKeys[3])).flatMap(stringToIntOption).getOrElse(0);
-
-                var id_byJaeger = new TraceId({
-                  traceId: traceId,
-                  parentId: parentSpanId,
-                  spanId: jaegerSpanId,
-                  flags
-                });
-                tracer.setId(id_byJaeger);
-                probeData.traceId = tracer.id;
-              }
-            } else if (hasZipkinHeader(httpsReq)) {
+            if (hasZipkinHeader(httpsReq)) {
               const headers = httpsReq.headers;
               var spanId = headers[(Header.SpanId).toLowerCase()];
               if (spanId !== undefined) {
