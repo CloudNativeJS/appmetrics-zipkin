@@ -23,6 +23,7 @@ const zipkin = require('zipkin');
 
 var serviceName;
 var ibmapmContext;
+var tracer;
 
 const {
   Request,
@@ -67,12 +68,18 @@ function stringToIntOption(str) {
 HttpProbeZipkin.prototype.updateProbes = function() {
   serviceName = this.serviceName;
   ibmapmContext = this.ibmapmContext;
+  tracer = new zipkin.Tracer({
+    ctxImpl,
+    recorder: this.recorder,
+    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
+    traceId128Bit: true // to generate 128-bit trace IDs.
+  });
 };
 
 HttpProbeZipkin.prototype.attach = function(name, target) {
   serviceName = this.serviceName;
 
-  const tracer = new zipkin.Tracer({
+  tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
     sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
@@ -90,6 +97,9 @@ HttpProbeZipkin.prototype.attach = function(name, target) {
         if (obj.__zipkinhttpProbe__) return;
         obj.__zipkinhttpProbe__ = true;
         aspect.aroundCallback(args, probeData, function(obj, args, probeData) {
+          if (process.env.JAEGER_ENDPOINT_NOTREADY === 'true'){
+            return;
+          }
           var httpReq = args[0];
           var res = args[1];
           // Filter out urls where filter.to is ''

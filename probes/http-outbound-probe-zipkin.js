@@ -26,6 +26,7 @@ var serviceName;
 var ibmapmContext;
 var headerFilters;
 var pathFilters;
+var tracer;
 
 const {
   Request,
@@ -56,11 +57,17 @@ HttpOutboundProbeZipkin.prototype.updateProbes = function() {
   ibmapmContext = this.ibmapmContext;
   headerFilters = this.headerFilters;
   pathFilters = this.pathFilters;
+  tracer = new zipkin.Tracer({
+    ctxImpl,
+    recorder: this.recorder,
+    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
+    traceId128Bit: true // to generate 128-bit trace IDs.
+  });
 };
 
 
 HttpOutboundProbeZipkin.prototype.attach = function(name, target) {
-  const tracer = new zipkin.Tracer({
+  tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
     sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
@@ -76,6 +83,9 @@ HttpOutboundProbeZipkin.prototype.attach = function(name, target) {
       // Before 'http.request' function
       function(obj, methodName, methodArgs, probeData) {
         // Get HTTP request method from options
+        if (process.env.JAEGER_ENDPOINT_NOTREADY === 'true'){
+          return;
+        }
         var options = methodArgs[0];
         var requestMethod = 'GET';
         var urlRequested = '';
@@ -116,6 +126,7 @@ HttpOutboundProbeZipkin.prototype.attach = function(name, target) {
           methodArgs,
           probeData,
           function(target, args, probeData) {
+            tracer.setId(childId);
             console.info('confirm:', urlRequested);
             tracer.recordBinary('http.status_code', target.res.statusCode.toString());
             tracer.recordAnnotation(new Annotation.ClientRecv());
