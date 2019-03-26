@@ -102,6 +102,7 @@ HttpProbeZipkin.prototype.attach = function(name, target) {
           }
           var httpReq = args[0];
           var res = args[1];
+          var childId;
           // Filter out urls where filter.to is ''
           var traceUrl = parse(httpReq.url);
           // console.log(util.inspect(httpReq));
@@ -126,6 +127,8 @@ HttpProbeZipkin.prototype.attach = function(name, target) {
                   flags
                 });
                 tracer.setId(id);
+                childId = tracer.createChildId();
+                tracer.setId(childId);
                 probeData.traceId = tracer.id;
               };
             } else {
@@ -135,12 +138,12 @@ HttpProbeZipkin.prototype.attach = function(name, target) {
               const { headers } = Request.addZipkinHeaders(args[0], tracer.id);
               Object.assign(args[0].headers, headers);
             }
-            var serverTracerId = tracer.id;
+            // var serverTracerId = tracer.id;
             tracer.recordBinary('http.url', httpReq.headers.host + traceUrl);
             tracer.recordAnnotation(new Annotation.ServerRecv());
             console.info('http-tracer(before): ', tracer.id);
             aspect.after(res, 'end', probeData, function(obj, methodName, args, probeData, ret) {
-              tracer.setId(serverTracerId);
+              tracer.setId(probeData.traceId);
               tracer.recordServiceName(serviceName);
               tracer.recordRpc(reqMethod.toUpperCase() + ' ' + traceUrl);
               tracer.recordAnnotation(new Annotation.LocalAddr(0));

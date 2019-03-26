@@ -103,6 +103,7 @@ HttpsProbeZipkin.prototype.attach = function(name, target) {
           }
           var httpsReq = args[0];
           var res = args[1];
+          var childId;
           // Filter out urls where filter.to is ''
           var traceUrl = parse(httpsReq.url);
           if (traceUrl !== '') {
@@ -126,6 +127,8 @@ HttpsProbeZipkin.prototype.attach = function(name, target) {
                   flags
                 });
                 tracer.setId(id);
+                childId = tracer.createChildId();
+                tracer.setId(childId);
                 probeData.traceId = tracer.id;
               };
             } else {
@@ -141,6 +144,7 @@ HttpsProbeZipkin.prototype.attach = function(name, target) {
             console.info('https-tracer(before): ', tracer.id);
 
             aspect.after(res, 'end', probeData, function(obj, methodName, args, probeData, ret) {
+              tracer.setId(probeData.traceId);
               tracer.recordServiceName(serviceName);
               tracer.recordRpc(reqMethod.toUpperCase() + ' ' + traceUrl);
               tracer.recordAnnotation(new Annotation.LocalAddr(0));
