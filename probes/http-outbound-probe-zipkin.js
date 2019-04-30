@@ -16,12 +16,19 @@
 'use strict';
 var Probe = require('../lib/probe.js');
 var aspect = require('../lib/aspect.js');
+var tool = require('../lib/tools.js');
 var util = require('util');
 var url = require('url');
 var semver = require('semver');
 const zipkin = require('zipkin');
+var log4js = require('log4js');
+var logger = log4js.getLogger('knj_log');
 
 var serviceName;
+var ibmapmContext;
+var headerFilters;
+var pathFilters;
+var tracer;
 
 const {
   Request,
@@ -46,11 +53,27 @@ function HttpOutboundProbeZipkin() {
 }
 util.inherits(HttpOutboundProbeZipkin, Probe);
 
-HttpOutboundProbeZipkin.prototype.attach = function(name, target) {
-  const tracer = new zipkin.Tracer({
+HttpOutboundProbeZipkin.prototype.updateProbes = function() {
+  serviceName = this.serviceName;
+  ibmapmContext = this.ibmapmContext;
+  headerFilters = this.headerFilters;
+  pathFilters = this.pathFilters;
+  tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
-    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
+    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate),
+        // sample rate 0.01 will sample 1 % of all incoming requests
+    traceId128Bit: true // to generate 128-bit trace IDs.
+  });
+};
+
+
+HttpOutboundProbeZipkin.prototype.attach = function(name, target) {
+  tracer = new zipkin.Tracer({
+    ctxImpl,
+    recorder: this.recorder,
+    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate),
+        // sample rate 0.01 will sample 1 % of all incoming requests
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
   serviceName = this.serviceName;
@@ -63,10 +86,16 @@ HttpOutboundProbeZipkin.prototype.attach = function(name, target) {
       // Before 'http.request' function
       function(obj, methodName, methodArgs, probeData) {
         // Get HTTP request method from options
+        if (process.env.JAEGER_ENDPOINT_NOTREADY === 'true'){
+          return;
+        }
         var options = methodArgs[0];
         var requestMethod = 'GET';
         var urlRequested = '';
         if (typeof options === 'object') {
+          if (tool.isIcamInternalRequest(options, headerFilters, pathFilters)){
+            return;
+          }
           urlRequested = formatURL(options);
           if (options.method) {
             requestMethod = options.method;
@@ -84,20 +113,40 @@ HttpOutboundProbeZipkin.prototype.attach = function(name, target) {
         }
 
         if (!methodArgs[0].headers) methodArgs[0].headers = {};
-        let { headers } = Request.addZipkinHeaders(methodArgs[0], tracer.createChildId());
+        var childId = tracer.createChildId();
+        let { headers } = Request.addZipkinHeaders(methodArgs[0], childId);
         Object.assign(methodArgs[0].headers, { headers });
+        tracer.setId(childId);
 
+        if (urlRequested.length > global.KNJ_TT_MAX_LENGTH) {
+          urlRequested = urlRequested.substr(0, global.KNJ_TT_MAX_LENGTH);
+        }
         tracer.recordServiceName(serviceName);
-        tracer.recordRpc(requestMethod);
+        tracer.recordRpc(urlRequested);
         tracer.recordBinary('http.url', urlRequested);
+        tracer.recordBinary('http.method', requestMethod.toUpperCase());
+        if (process.env.APM_TENANT_ID){
+          tracer.recordBinary('tenant.id', process.env.APM_TENANT_ID);
+        }
+        tracer.recordBinary('edge.request', 'false');
+        tracer.recordBinary('request.type', 'http');
+        tool.recordIbmapmContext(tracer, ibmapmContext);
         tracer.recordAnnotation(new Annotation.ClientSend());
+        logger.debug('send http-outbound-tracer(before): ', tracer.id);
         // End metrics
         aspect.aroundCallback(
           methodArgs,
           probeData,
           function(target, args, probeData) {
-            tracer.recordBinary('http.status_code', target.res.statusCode.toString());
+            tracer.setId(childId);
+            logger.debug('confirm:', urlRequested);
+            var status_code = target.res.statusCode.toString();
+            tracer.recordBinary('http.status_code', status_code);
+            if (status_code >= 400) {
+              tracer.recordBinary('error', 'true');
+            }
             tracer.recordAnnotation(new Annotation.ClientRecv());
+            logger.debug('send http-outbound-tracer(aroundCallback): ', tracer.id);
           },
           function(target, args, probeData, ret) {
             return ret;
@@ -131,11 +180,14 @@ function formatURL(httpOptions) {
     url += httpOptions.host;
   } else if (httpOptions.hostname) {
     url += httpOptions.hostname;
+    if (httpOptions.port) {
+      url += ':' + httpOptions.port;
+    }
   } else {
     url += 'localhost';
-  }
-  if (httpOptions.port) {
-    url += ':' + httpOptions.port;
+    if (httpOptions.port) {
+      url += ':' + httpOptions.port;
+    }
   }
   if (httpOptions.path) {
     url += httpOptions.path;
@@ -144,5 +196,4 @@ function formatURL(httpOptions) {
   }
   return url;
 }
-
 module.exports = HttpOutboundProbeZipkin;

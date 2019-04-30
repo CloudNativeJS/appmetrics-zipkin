@@ -17,10 +17,15 @@
 
 var Probe = require('../lib/probe.js');
 var aspect = require('../lib/aspect.js');
+var tool = require('../lib/tools.js');
 var util = require('util');
 const zipkin = require('zipkin');
+var log4js = require('log4js');
+var logger = log4js.getLogger('knj_log');
 
 var serviceName;
+var ibmapmContext;
+var tracer;
 
 const {
   Request,
@@ -38,14 +43,14 @@ const ctxImpl = new CLSContext();
 
 function hasZipkinHeader(httpsReq) {
   const headers = httpsReq.headers || {};
-  return headers[(Header.TraceId).toLowerCase()] !== undefined && headers[(Header.SpanId).toLowerCase()] !== undefined;
+  return headers[(Header.TraceId).toLowerCase()] !== undefined
+    && headers[(Header.SpanId).toLowerCase()] !== undefined;
 }
-
 
 function HttpsProbeZipkin() {
   Probe.call(this, 'https');
   this.config = {
-    filters: [],
+    filters: []
   };
 }
 util.inherits(HttpsProbeZipkin, Probe);
@@ -57,23 +62,38 @@ function stringToBoolean(str) {
 
 function stringToIntOption(str) {
   try {
+    // eslint-disable-next-line radix
     return new Some(parseInt(str, 10));
   } catch (err) {
     return None;
   }
 }
 
+HttpsProbeZipkin.prototype.updateProbes = function() {
+  serviceName = this.serviceName;
+  ibmapmContext = this.ibmapmContext;
+  tracer = new zipkin.Tracer({
+    ctxImpl,
+    recorder: this.recorder,
+    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate),
+      // sample rate 0.01 will sample 1 % of all incoming requests
+    traceId128Bit: true // to generate 128-bit trace IDs.
+  });
+};
+
+
 HttpsProbeZipkin.prototype.attach = function(name, target) {
   serviceName = this.serviceName;
 
-  const tracer = new zipkin.Tracer({
+  tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
-    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
+    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate),
+      // sample rate 0.01 will sample 1 % of all incoming requests
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
 
-  if (name == 'https') {
+  if (name === 'https') {
     if (target.__zipkinProbeAttached__) return target;
     target.__zipkinProbeAttached__ = true;
     var methods = ['on', 'addListener'];
@@ -84,13 +104,21 @@ HttpsProbeZipkin.prototype.attach = function(name, target) {
         if (obj.__zipkinhttpsProbe__) return;
         obj.__zipkinhttpsProbe__ = true;
         aspect.aroundCallback(args, probeData, function(obj, args, probeData) {
+          if (process.env.JAEGER_ENDPOINT_NOTREADY === 'true'){
+            return;
+          }
           var httpsReq = args[0];
           var res = args[1];
+          var childId;
           // Filter out urls where filter.to is ''
           var traceUrl = parse(httpsReq.url);
           if (traceUrl !== '') {
-            const method = httpsReq.method;
-
+            var reqMethod = httpsReq.method;
+            var edgeRequest = false;
+            if (reqMethod.toUpperCase() === 'OPTIONS'
+                && httpsReq.headers['access-control-request-method']) {
+              reqMethod = httpsReq.headers['access-control-request-method'];
+            }
             if (hasZipkinHeader(httpsReq)) {
               const headers = httpsReq.headers;
               var spanId = headers[(Header.SpanId).toLowerCase()];
@@ -98,7 +126,8 @@ HttpsProbeZipkin.prototype.attach = function(name, target) {
                 const traceId = new Some(headers[(Header.TraceId).toLowerCase()]);
                 const parentSpanId = new Some(headers[(Header.ParentSpanId).toLowerCase()]);
                 const sampled = new Some(headers[(Header.Sampled).toLowerCase()]);
-                const flags = (new Some(headers[(Header.Flags).toLowerCase()])).flatMap(stringToIntOption).getOrElse(0);
+                const flags = (new Some(headers[(Header.Flags).toLowerCase()]))
+                    .flatMap(stringToIntOption).getOrElse(0);
                 var id = new TraceId({
                   traceId: traceId,
                   parentId: parentSpanId,
@@ -107,25 +136,54 @@ HttpsProbeZipkin.prototype.attach = function(name, target) {
                   flags
                 });
                 tracer.setId(id);
+                childId = tracer.createChildId();
+                tracer.setId(childId);
                 probeData.traceId = tracer.id;
               };
             } else {
+              edgeRequest = true;
               tracer.setId(tracer.createRootId());
               probeData.traceId = tracer.id;
               // Must assign new options back to args[0]
-              args[0] = Request.addZipkinHeaders(args[0], tracer.id);
+              const { headers } = Request.addZipkinHeaders(args[0], tracer.id);
+              Object.assign(args[0].headers, headers);
             }
 
-            tracer.recordServiceName(serviceName);
-            tracer.recordRpc(method.toUpperCase());
-            tracer.recordBinary('http.url', httpsReq.headers.host + traceUrl);
-            tracer.recordAnnotation(new Annotation.ServerRecv());
-            tracer.recordAnnotation(new Annotation.LocalAddr(0));
+            var urlPrefix = 'https://' + httpsReq.headers.host;
+            var maxUrlLength = global.KNJ_TT_MAX_LENGTH;
+            if (urlPrefix.length < global.KNJ_TT_MAX_LENGTH) {
+              maxUrlLength = global.KNJ_TT_MAX_LENGTH - urlPrefix.length;
+            } else {
+              maxUrlLength = 1;
+            }
+            if (traceUrl.length > maxUrlLength) {
+              traceUrl = traceUrl.substr(0, maxUrlLength);
+            }
 
+            tracer.recordBinary('http.url', urlPrefix + traceUrl);
+            tracer.recordAnnotation(new Annotation.ServerRecv());
+            logger.debug('https-tracer(before): ', tracer.id);
 
             aspect.after(res, 'end', probeData, function(obj, methodName, args, probeData, ret) {
-              tracer.recordBinary('http.status_code', res.statusCode.toString());
+              tracer.setId(probeData.traceId);
+              tracer.recordServiceName(serviceName);
+              tracer.recordBinary('service.name', serviceName);
+              tracer.recordRpc(traceUrl);
+              tracer.recordAnnotation(new Annotation.LocalAddr(0));
+              var status_code = res.statusCode.toString();
+              tracer.recordBinary('http.status_code', status_code);
+              if (status_code >= 400) {
+                tracer.recordBinary('error', 'true');
+              }
+              tracer.recordBinary('http.method', reqMethod.toUpperCase());
+              if (process.env.APM_TENANT_ID){
+                tracer.recordBinary('tenant.id', process.env.APM_TENANT_ID);
+              }
+              tracer.recordBinary('edge.request', '' + edgeRequest);
+              tracer.recordBinary('request.type', 'https');
+              tool.recordIbmapmContext(tracer, ibmapmContext);
               tracer.recordAnnotation(new Annotation.ServerSend());
+              logger.debug('https-tracer(after): ', tracer.id);
             });
           }
         });
@@ -137,13 +195,12 @@ HttpsProbeZipkin.prototype.attach = function(name, target) {
 /*
  * Custom req.url parser that strips out any trailing query
  */
-var parse = function(url) {
+function parse(url) {
   ['?', '#'].forEach(function(separator) {
     var index = url.indexOf(separator);
     if (index !== -1) url = url.substring(0, index);
   });
   return url;
 };
-
 
 module.exports = HttpsProbeZipkin;

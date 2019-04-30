@@ -40,7 +40,7 @@ describe('aspect', () => {
     });
     it('should not find a callback among parameters with no callback', () => {
       const args = ['a', {}, 123];
-      expect(findCallbackArg(args) == undefined).to.be.ok;
+      expect(findCallbackArg(args) === undefined).to.be.ok;
     });
   });
   describe('aroundCallBack', () => {
