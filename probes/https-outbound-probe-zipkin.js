@@ -21,6 +21,8 @@ var util = require('util');
 var url = require('url');
 var semver = require('semver');
 const zipkin = require('zipkin');
+var log4js = require('log4js');
+var logger = log4js.getLogger('knj_log');
 
 var serviceName;
 var ibmapmContext;
@@ -60,7 +62,8 @@ HttpsOutboundProbeZipkin.prototype.updateProbes = function() {
   tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
-    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
+    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate),
+        // sample rate 0.01 will sample 1 % of all incoming requests
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
 };
@@ -69,7 +72,8 @@ HttpsOutboundProbeZipkin.prototype.attach = function(name, target) {
   tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
-    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
+    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate),
+        // sample rate 0.01 will sample 1 % of all incoming requests
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
   serviceName = this.serviceName;
@@ -102,27 +106,47 @@ HttpsOutboundProbeZipkin.prototype.attach = function(name, target) {
           if (parsedOptions.method) {
             requestMethod = parsedOptions.method;
           }
+
+          // This converts the outgoing request's options to an object
+          // so that we can add headers onto it
+          methodArgs[0] = Object.assign({}, parsedOptions);
         }
 
-        // Must assign new options back to methodArgs[0]
-        let { headers } = Request.addZipkinHeaders(methodArgs[0], tracer.createChildId());
+        if (!methodArgs[0].headers) methodArgs[0].headers = {};
+        var childId = tracer.createChildId();
+        let { headers } = Request.addZipkinHeaders(methodArgs[0], childId);
         Object.assign(methodArgs[0].headers, { headers });
+        tracer.setId(childId);
 
+        if (urlRequested.length > global.KNJ_TT_MAX_LENGTH) {
+          urlRequested = urlRequested.substr(0, global.KNJ_TT_MAX_LENGTH);
+        }
         tracer.recordServiceName(serviceName);
-        tracer.recordRpc(requestMethod + ' ' + urlRequested);
+        tracer.recordRpc(urlRequested);
         tracer.recordBinary('http.url', urlRequested);
+        tracer.recordBinary('http.method', requestMethod.toUpperCase());
+        if (process.env.APM_TENANT_ID){
+          tracer.recordBinary('tenant.id', process.env.APM_TENANT_ID);
+        }
+        tracer.recordBinary('edge.request', 'false');
+        tracer.recordBinary('request.type', 'https');
         tool.recordIbmapmContext(tracer, ibmapmContext);
         tracer.recordAnnotation(new Annotation.ClientSend());
-        console.info('send https-outbound-tracer(before): ', tracer.id);
+        logger.debug('send https-outbound-tracer(before): ', tracer.id);
         // End metrics
         aspect.aroundCallback(
           methodArgs,
           probeData,
           function(target, args, probeData) {
-            console.info('confirm:', urlRequested);
-            tracer.recordBinary('http.status_code', target.res.statusCode.toString());
+            tracer.setId(childId);
+            logger.debug('confirm:', urlRequested);
+            var status_code = target.res.statusCode.toString();
+            tracer.recordBinary('http.status_code', status_code);
+            if (status_code >= 400) {
+              tracer.recordBinary('error', 'true');
+            }
             tracer.recordAnnotation(new Annotation.ClientRecv());
-            console.info('send https-outbound-tracer(aroundCallback): ', tracer.id);
+            logger.debug('send https-outbound-tracer(aroundCallback): ', tracer.id);
           },
           function(target, args, probeData, ret) {
             return ret;

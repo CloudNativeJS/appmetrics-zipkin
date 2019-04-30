@@ -20,6 +20,8 @@ var aspect = require('../lib/aspect.js');
 var tool = require('../lib/tools.js');
 var util = require('util');
 const zipkin = require('zipkin');
+var log4js = require('log4js');
+var logger = log4js.getLogger('knj_log');
 
 var serviceName;
 var ibmapmContext;
@@ -47,7 +49,7 @@ function hasZipkinHeader(httpReq) {
 function HttpProbeZipkin() {
   Probe.call(this, 'http');
   this.config = {
-    filters: [],
+    filters: []
   };
 }
 util.inherits(HttpProbeZipkin, Probe);
@@ -59,6 +61,7 @@ function stringToBoolean(str) {
 
 function stringToIntOption(str) {
   try {
+    // eslint-disable-next-line radix
     return new Some(parseInt(str, 10));
   } catch (err) {
     return None;
@@ -71,7 +74,8 @@ HttpProbeZipkin.prototype.updateProbes = function() {
   tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
-    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
+    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate),
+        // sample rate 0.01 will sample 1 % of all incoming requests
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
 };
@@ -82,11 +86,12 @@ HttpProbeZipkin.prototype.attach = function(name, target) {
   tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
-    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
+    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate),
+        // sample rate 0.01 will sample 1 % of all incoming requests
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
 
-  if (name == 'http') {
+  if (name === 'http') {
     if (target.__zipkinProbeAttached__) return target;
     target.__zipkinProbeAttached__ = true;
     var methods = ['on', 'addListener'];
@@ -105,9 +110,9 @@ HttpProbeZipkin.prototype.attach = function(name, target) {
           var childId;
           // Filter out urls where filter.to is ''
           var traceUrl = parse(httpReq.url);
-          // console.log(util.inspect(httpReq));
           if (traceUrl !== '') {
             var reqMethod = httpReq.method;
+            var edgeRequest = false;
             if (reqMethod.toUpperCase() === 'OPTIONS' && httpReq.headers['access-control-request-method']) {
               reqMethod = httpReq.headers['access-control-request-method'];
             }
@@ -132,25 +137,48 @@ HttpProbeZipkin.prototype.attach = function(name, target) {
                 probeData.traceId = tracer.id;
               };
             } else {
+              edgeRequest = true;
               tracer.setId(tracer.createRootId());
               probeData.traceId = tracer.id;
               // Must assign new options back to args[0]
               const { headers } = Request.addZipkinHeaders(args[0], tracer.id);
               Object.assign(args[0].headers, headers);
             }
-            // var serverTracerId = tracer.id;
-            tracer.recordBinary('http.url', httpReq.headers.host + traceUrl);
+
+            var urlPrefix = 'http://' + httpReq.headers.host;
+            var maxUrlLength = global.KNJ_TT_MAX_LENGTH;
+            if (urlPrefix.length < global.KNJ_TT_MAX_LENGTH) {
+              maxUrlLength = global.KNJ_TT_MAX_LENGTH - urlPrefix.length;
+            } else {
+              maxUrlLength = 1;
+            }
+            if (traceUrl.length > maxUrlLength) {
+              traceUrl = traceUrl.substr(0, maxUrlLength);
+            }
+
+            tracer.recordBinary('http.url', urlPrefix + traceUrl);
             tracer.recordAnnotation(new Annotation.ServerRecv());
-            console.info('http-tracer(before): ', tracer.id);
+            logger.debug('http-tracer(before): ', tracer.id);
             aspect.after(res, 'end', probeData, function(obj, methodName, args, probeData, ret) {
               tracer.setId(probeData.traceId);
               tracer.recordServiceName(serviceName);
-              tracer.recordRpc(reqMethod.toUpperCase() + ' ' + traceUrl);
+              tracer.recordBinary('service.name', serviceName);
+              tracer.recordRpc(traceUrl);
               tracer.recordAnnotation(new Annotation.LocalAddr(0));
-              tracer.recordBinary('http.status_code', res.statusCode.toString());
+              var status_code = res.statusCode.toString();
+              tracer.recordBinary('http.status_code', status_code);
+              if (status_code >= 400) {
+                tracer.recordBinary('error', 'true');
+              }
+              tracer.recordBinary('http.method', reqMethod.toUpperCase());
+              if (process.env.APM_TENANT_ID){
+                tracer.recordBinary('tenant.id', process.env.APM_TENANT_ID);
+              }
+              tracer.recordBinary('edge.request', '' + edgeRequest);
+              tracer.recordBinary('request.type', 'http');
               tool.recordIbmapmContext(tracer, ibmapmContext);
               tracer.recordAnnotation(new Annotation.ServerSend());
-              console.info('http-tracer(after): ', tracer.id);
+              logger.debug('http-tracer(after): ', tracer.id);
             });
           }
         });

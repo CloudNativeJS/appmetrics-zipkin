@@ -21,7 +21,11 @@ var aspect = require('./lib/aspect.js');
 var fs = require('fs');
 var PropertyReader = require('properties-reader');
 var properties = PropertyReader(__dirname + '/appmetrics-zipkin.properties');
-var tcpp = require('tcp-ping');
+var {Endpoint} = require('zipkin/lib/model');
+Endpoint.prototype.setServiceName = function setServiceName(serviceName) {
+  // In zipkin, names are lowercase. This eagerly converts to alert users early.
+  this.serviceName = serviceName || undefined;
+};
 
 const {
   BatchRecorder
@@ -29,6 +33,7 @@ const {
 const {
   HttpLogger
 } = require('zipkin-transport-http');
+const HttpsLogger = require('./lib/zipkin-transport-https');
 
 // Load module probes into probes array by searching the probes directory.
 var probes = [];
@@ -54,10 +59,22 @@ module.exports = function(options) {
 function start(options) {
   // Set up the zipkin
   var host, port, serviceName, sampleRate;
+  var zipkin_endpoint, pfx, passphase;
+
+  global.KNJ_TT_MAX_LENGTH = global.KNJ_TT_MAX_LENGTH || 128;
 
   if (options) {
     host = options['host'];
     port = options['port'];
+    if (options.zipkinEndpoint){
+      zipkin_endpoint = options.zipkinEndpoint;
+    }
+    if (options.pfx){
+      pfx = options.pfx;
+    }
+    if (options.passphase){
+      passphase = options.passphase;
+    }
     serviceName = options['serviceName'];
     sampleRate = options['sampleRate'];
   }
@@ -92,20 +109,28 @@ function start(options) {
   }
 
   // Test if the host & port are valid
-  tcpp.probe(host, port, function(err, available) {
-    if (err) {
-      console.log('Unable to contact Zipkin at ' + host + ':' + port);
-      return;
-    }
-    if (!available) {
-      console.log('Unable to contact Zipkin at ' + host + ':' + port);
-    }
-  });
+  // if (host && port) {
+  //   tcpp.probe(host, port, function(err, available) {
+  //     if (err) {
+  //       console.log('Unable to contact Zipkin at ' + host + ':' + port);
+  //       return;
+  //     }
+  //     if (!available) {
+  //       console.log('Unable to contact Zipkin at ' + host + ':' + port);
+  //     }
+  //   });
+  // }
 
-  const zipkinUrl = `http://${host}:${port}`;
+  const zipkinUrl = zipkin_endpoint || `http://${host}:${port}/api/v1/spans`;
   const recorder = new BatchRecorder({
-    logger: new HttpLogger({
-      endpoint: `${zipkinUrl}/api/v1/spans`
+    logger: zipkinUrl.startsWith('https:') ?
+    new HttpsLogger({
+      endpoint: zipkinUrl,
+      pfx: pfx,
+      passphase: passphase
+    }) :
+    new HttpLogger({
+      endpoint: zipkinUrl
     })
   });
 
@@ -138,7 +163,6 @@ module.exports.updateServiceName = function(serviceName){
 };
 
 module.exports.updatePathFilter = function(paths){
-  console.info('updatePathFilter', paths);
   probes.forEach(function(probe) {
     probe.setPathFilter(paths);
     probe.updateProbes();
@@ -147,7 +171,6 @@ module.exports.updatePathFilter = function(paths){
 
 
 module.exports.updateHeaderFilter = function(headers){
-  console.info('updateHeaderFilter', headers);
   probes.forEach(function(probe) {
     probe.setHeaderFilter(headers);
     probe.updateProbes();

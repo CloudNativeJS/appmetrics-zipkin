@@ -21,6 +21,8 @@ var util = require('util');
 var url = require('url');
 var semver = require('semver');
 const zipkin = require('zipkin');
+var log4js = require('log4js');
+var logger = log4js.getLogger('knj_log');
 
 var serviceName;
 var ibmapmContext;
@@ -52,7 +54,6 @@ function HttpOutboundProbeZipkin() {
 util.inherits(HttpOutboundProbeZipkin, Probe);
 
 HttpOutboundProbeZipkin.prototype.updateProbes = function() {
-  console.info('updateProbes', this.headerFilters, this.pathFilters);
   serviceName = this.serviceName;
   ibmapmContext = this.ibmapmContext;
   headerFilters = this.headerFilters;
@@ -60,7 +61,8 @@ HttpOutboundProbeZipkin.prototype.updateProbes = function() {
   tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
-    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
+    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate),
+        // sample rate 0.01 will sample 1 % of all incoming requests
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
 };
@@ -70,7 +72,8 @@ HttpOutboundProbeZipkin.prototype.attach = function(name, target) {
   tracer = new zipkin.Tracer({
     ctxImpl,
     recorder: this.recorder,
-    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate), // sample rate 0.01 will sample 1 % of all incoming requests
+    sampler: new zipkin.sampler.CountingSampler(this.config.sampleRate),
+        // sample rate 0.01 will sample 1 % of all incoming requests
     traceId128Bit: true // to generate 128-bit trace IDs.
   });
   serviceName = this.serviceName;
@@ -115,22 +118,35 @@ HttpOutboundProbeZipkin.prototype.attach = function(name, target) {
         Object.assign(methodArgs[0].headers, { headers });
         tracer.setId(childId);
 
+        if (urlRequested.length > global.KNJ_TT_MAX_LENGTH) {
+          urlRequested = urlRequested.substr(0, global.KNJ_TT_MAX_LENGTH);
+        }
         tracer.recordServiceName(serviceName);
-        tracer.recordRpc(requestMethod + ' ' + urlRequested);
+        tracer.recordRpc(urlRequested);
         tracer.recordBinary('http.url', urlRequested);
+        tracer.recordBinary('http.method', requestMethod.toUpperCase());
+        if (process.env.APM_TENANT_ID){
+          tracer.recordBinary('tenant.id', process.env.APM_TENANT_ID);
+        }
+        tracer.recordBinary('edge.request', 'false');
+        tracer.recordBinary('request.type', 'http');
         tool.recordIbmapmContext(tracer, ibmapmContext);
         tracer.recordAnnotation(new Annotation.ClientSend());
-        console.info('send http-outbound-tracer(before): ', tracer.id);
+        logger.debug('send http-outbound-tracer(before): ', tracer.id);
         // End metrics
         aspect.aroundCallback(
           methodArgs,
           probeData,
           function(target, args, probeData) {
             tracer.setId(childId);
-            console.info('confirm:', urlRequested);
-            tracer.recordBinary('http.status_code', target.res.statusCode.toString());
+            logger.debug('confirm:', urlRequested);
+            var status_code = target.res.statusCode.toString();
+            tracer.recordBinary('http.status_code', status_code);
+            if (status_code >= 400) {
+              tracer.recordBinary('error', 'true');
+            }
             tracer.recordAnnotation(new Annotation.ClientRecv());
-            console.info('send http-outbound-tracer(aroundCallback): ', tracer.id);
+            logger.debug('send http-outbound-tracer(aroundCallback): ', tracer.id);
           },
           function(target, args, probeData, ret) {
             return ret;
