@@ -23,7 +23,7 @@ describe('http requests', () => {
     let server;
     let http;
 
-    const startupDelay = 2000;
+    const startupDelay = 1000;
 
     before(() => {
       return new Promise((resolve) => {
