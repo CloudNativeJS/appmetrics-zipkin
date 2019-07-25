@@ -14,7 +14,7 @@ function waitAndGetTraces() {
   return new Promise(resolve => {
     setTimeout(() => { // We want to let all background requests going to zipkin complete
       resolve(getTraces({ zipkinHost, zipkinPort, serviceName }));
-    }, 3000);
+    }, 2000);
   });
 }
 
@@ -23,7 +23,7 @@ describe('http requests', () => {
     let server;
     let http;
 
-    const startupDelay = 10000;
+    const startupDelay = 2000;
 
     before(() => {
       return new Promise((resolve) => {
@@ -36,7 +36,7 @@ describe('http requests', () => {
         });
 
         http = require('http');
-        createServer({ http, port: 3003 })
+        createServer({ http, port: 3000 })
           .then(createdServer => {
             server = createdServer;
 
@@ -51,7 +51,7 @@ describe('http requests', () => {
     });
     it('should reach zipkin with a simple http request (string options)', () => {
       let outgoingTraceId;
-      return request({ http, options: 'http://localhost:3003' })
+      return request({ http, options: 'http://localhost:3000' })
         .then(({ request }) => {
           const outgoingHeaders = request._headers;
           outgoingTraceId = outgoingHeaders['x-b3-traceid'];
@@ -64,7 +64,7 @@ describe('http requests', () => {
     });
     it('should reach zipkin with a simple http request (object options)', () => {
       let outgoingTraceId;
-      return request({ http, options: { hostname: 'localhost', port: 3003 } })
+      return request({ http, options: { hostname: 'localhost', port: 3000 } })
         .then(({ request }) => {
           const outgoingHeaders = request._headers;
           outgoingTraceId = outgoingHeaders['x-b3-traceid'];
