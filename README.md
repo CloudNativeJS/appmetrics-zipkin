@@ -12,14 +12,15 @@ Unlike other zipkin instrumentation packages, appmetrics-zipkin will automatical
 ## Configure Zipkin Endpoint
 Connecting to a [Zipkin](https://github.com/openzipkin/zipkin) endpoint is done by adding the desired hostname and port to `appmetrics-zipkin.properties` file.
 
-Alternatively, the hostname, port and service name (used by Zipkin to identify your application) can be added when including appmetrics-zipkin into your application:
+Alternatively, the hostname, port, timeout (optional) and service name (used by Zipkin to identify your application) can be added when including appmetrics-zipkin into your application:
 
 ```js
 var appzip = require('appmetrics-zipkin')({
   host: 'localhost',
   port: 9411,
   serviceName:'frontend',
-  sampleRate: 1.0
+  sampleRate: 1.0,
+  timeout: 5000
 });
 ```
 
