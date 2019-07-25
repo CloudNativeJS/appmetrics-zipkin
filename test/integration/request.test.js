@@ -23,28 +23,19 @@ describe('http requests', () => {
     let server;
     let http;
 
-    const startupDelay = 2000;
-
     before(() => {
-      return new Promise((resolve) => {
-
-        require('../../')({
-          host: zipkinHost,
-          port: zipkinPort,
-          sampleRate: zipkinSampleRate,
-          serviceName
-        });
-
-        http = require('http');
-        createServer({ http, port: 3000 })
-          .then(createdServer => {
-            server = createdServer;
-
-            setTimeout(() => {
-              return resolve();
-            }, startupDelay);
-          });
+      require('../../')({
+        host: zipkinHost,
+        port: zipkinPort,
+        sampleRate: zipkinSampleRate,
+        serviceName
       });
+
+      http = require('http');
+      return createServer({ http, port: 3000 })
+        .then(createdServer => {
+          server = createdServer;
+        });
     });
     after(() => {
       if (server) server.close();
