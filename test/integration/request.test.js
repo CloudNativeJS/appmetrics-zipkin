@@ -28,7 +28,8 @@ describe('http requests', () => {
         host: zipkinHost,
         port: zipkinPort,
         sampleRate: zipkinSampleRate,
-        serviceName
+        serviceName,
+        timeout: 10000
       });
 
       http = require('http');
