@@ -14,7 +14,7 @@ function waitAndGetTraces() {
   return new Promise(resolve => {
     setTimeout(() => { // We want to let all background requests going to zipkin complete
       resolve(getTraces({ zipkinHost, zipkinPort, serviceName }));
-    }, 1000);
+    }, 3000);
   });
 }
 
