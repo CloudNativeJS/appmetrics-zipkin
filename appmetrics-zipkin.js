@@ -53,13 +53,14 @@ module.exports = function(options) {
 
 function start(options) {
   // Set up the zipkin
-  var host, port, serviceName, sampleRate;
+  var host, port, serviceName, sampleRate, timeout;
 
   if (options) {
     host = options['host'];
     port = options['port'];
     serviceName = options['serviceName'];
     sampleRate = options['sampleRate'];
+    timeout = options['timeout'];
   }
 
   // Uses properties from file if present
@@ -76,6 +77,9 @@ function start(options) {
     if (properties.get('sampleRate')) {
       sampleRate = properties.get('sampleRate');
     }
+    if (properties.get('timeout')) {
+      timeout = properties.get('timeout');
+    }
   }
 
   if (!serviceName) {
@@ -90,17 +94,25 @@ function start(options) {
   if (!sampleRate) {
     sampleRate = 1.0;
   }
+  if (!timeout) {
+    timeout = 5000;
+  }
 
   // Test if the host & port are valid
-  tcpp.probe(host, port, function(err, available) {
-    if (err) {
-      console.log('Unable to contact Zipkin at ' + host + ':' + port);
-      return;
-    }
-    if (!available) {
-      console.log('Unable to contact Zipkin at ' + host + ':' + port);
-    }
-  });
+  tcpp.ping(
+    {
+      address: host,
+      port,
+      timeout,
+      attempts: 1,
+    },
+    function(_err, data) {
+      var available = data.min !== undefined;
+
+      if (!available) {
+        console.log('Unable to contact Zipkin at ' + host + ':' + port);
+      }
+    });
 
   const zipkinUrl = `http://${host}:${port}`;
   const recorder = new BatchRecorder({
