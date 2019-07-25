@@ -23,26 +23,28 @@ describe('http requests', () => {
     let server;
     let http;
 
-    const startupDelay = 3000;
+    const startupDelay = 2000;
 
     before(() => {
       return new Promise((resolve) => {
-        require('../../')({
-          host: zipkinHost,
-          port: zipkinPort,
-          sampleRate: zipkinSampleRate,
-          serviceName
-        });
-
-        http = require('http');
-        createServer({ http, port: 3000 })
-          .then(createdServer => {
-            server = createdServer;
-
-            setTimeout(() => {
-              return resolve();
-            }, startupDelay);
+        setTimeout(() => {
+          require('../../')({
+            host: zipkinHost,
+            port: zipkinPort,
+            sampleRate: zipkinSampleRate,
+            serviceName
           });
+
+          http = require('http');
+          createServer({ http, port: 3004 })
+            .then(createdServer => {
+              server = createdServer;
+
+
+              return resolve();
+
+            });
+        }, startupDelay);
       });
     });
     after(() => {
@@ -50,7 +52,7 @@ describe('http requests', () => {
     });
     it('should reach zipkin with a simple http request (string options)', () => {
       let outgoingTraceId;
-      return request({ http, options: 'http://localhost:3000' })
+      return request({ http, options: 'http://localhost:3004' })
         .then(({ request }) => {
           const outgoingHeaders = request._headers;
           outgoingTraceId = outgoingHeaders['x-b3-traceid'];
@@ -63,7 +65,7 @@ describe('http requests', () => {
     });
     it('should reach zipkin with a simple http request (object options)', () => {
       let outgoingTraceId;
-      return request({ http, options: { hostname: 'localhost', port: 3000 } })
+      return request({ http, options: { hostname: 'localhost', port: 3004 } })
         .then(({ request }) => {
           const outgoingHeaders = request._headers;
           outgoingTraceId = outgoingHeaders['x-b3-traceid'];
