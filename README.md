@@ -18,6 +18,7 @@ Alternatively, the hostname, port and service name (used by Zipkin to identify y
 var appzip = require('appmetrics-zipkin')({
   host: 'localhost',
   port: 9411,
+  protocol: 'http',
   serviceName:'frontend',
   sampleRate: 1.0
 });
@@ -25,7 +26,7 @@ var appzip = require('appmetrics-zipkin')({
 
 **Note**: The properties file has precedence over the inline settings
 
-If no configuration details are provided, the endpoint will be _localhost:9411_, the serviceName will be set to the program name that requires appmetrics-zipkin and the sample rate will be 1.0 (100% of requests).
+If no configuration details are provided, the endpoint will be _http://localhost:9411_, the serviceName will be set to the program name that requires appmetrics-zipkin and the sample rate will be 1.0 (100% of requests).
 
 
 ## Usage

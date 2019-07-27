@@ -53,11 +53,12 @@ module.exports = function(options) {
 
 function start(options) {
   // Set up the zipkin
-  var host, port, serviceName, sampleRate;
+  var host, port, protocol, serviceName, sampleRate;
 
   if (options) {
     host = options['host'];
     port = options['port'];
+    protocol = options['protocol'];
     serviceName = options['serviceName'];
     sampleRate = options['sampleRate'];
   }
@@ -69,6 +70,9 @@ function start(options) {
     }
     if (properties.get('port')) {
       port = properties.get('port');
+    }
+    if (properties.get('protocol')) {
+      protocol = properties.get('protocol');
     }
     if (properties.get('serviceName')) {
       serviceName = properties.get('serviceName');
@@ -87,6 +91,9 @@ function start(options) {
   if (!port) {
     port = 9411;
   }
+  if (!protocol) {
+    protocol = 'http';
+  }
   if (!sampleRate) {
     sampleRate = 1.0;
   }
@@ -102,7 +109,7 @@ function start(options) {
     }
   });
 
-  const zipkinUrl = `http://${host}:${port}`;
+  const zipkinUrl = `${protocol}://${host}:${port}`;
   const recorder = new BatchRecorder({
     logger: new HttpLogger({
       endpoint: `${zipkinUrl}/api/v1/spans`
