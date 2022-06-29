@@ -14,7 +14,7 @@ function waitAndGetTraces() {
   return new Promise(resolve => {
     setTimeout(() => { // We want to let all background requests going to zipkin complete
       resolve(getTraces({ zipkinHost, zipkinPort, serviceName }));
-    }, 1000);
+    }, 2000);
   });
 }
 
@@ -23,19 +23,28 @@ describe('http requests', () => {
     let server;
     let http;
 
-    before(() => {
-      require('../../')({
-        host: zipkinHost,
-        port: zipkinPort,
-        sampleRate: zipkinSampleRate,
-        serviceName
-      });
+    const startupDelay = 2000;
 
-      http = require('http');
-      return createServer({ http, port: 3000 })
-        .then(createdServer => {
-          server = createdServer;
+    before(() => {
+      return new Promise((resolve) => {
+
+        require('../../')({
+          host: zipkinHost,
+          port: zipkinPort,
+          sampleRate: zipkinSampleRate,
+          serviceName
         });
+
+        http = require('http');
+        createServer({ http, port: 3000 })
+          .then(createdServer => {
+            server = createdServer;
+
+            setTimeout(() => {
+              return resolve();
+            }, startupDelay);
+          });
+      });
     });
     after(() => {
       if (server) server.close();

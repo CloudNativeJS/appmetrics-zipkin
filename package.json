@@ -22,7 +22,7 @@
   "scripts": {
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "mocha test/unit/",
-    "test:integration": "mocha -t 3000 test/integration/",
+    "test:integration": "mocha -t 5000 test/integration/",
     "pretest": "eslint .",
     "pretravis": "eslint .",
     "travis": ""
