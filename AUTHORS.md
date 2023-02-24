@@ -5,3 +5,4 @@ Authors ordered by first contribution
  - Aaron Collins (aaron.collins1@ibm.com)
  - Chris Bailey (BAILEYC@uk.ibm.com)
  - Eli Goldberg (eli.b.goldberg@gmail.com)
+ - Krisztian Toth (selator@gmail.com)
