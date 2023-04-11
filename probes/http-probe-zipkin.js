@@ -20,6 +20,10 @@ var aspect = require('../lib/aspect.js');
 var util = require('util');
 const zipkin = require('zipkin');
 
+// get namespace
+const { getNamespace } = require('../lib/request-context.js');
+const namespace = getNamespace('appmetrics-zipkin-ns');
+
 var serviceName;
 
 const {
@@ -84,50 +88,55 @@ HttpProbeZipkin.prototype.attach = function(name, target) {
         if (obj.__zipkinhttpProbe__) return;
         obj.__zipkinhttpProbe__ = true;
         aspect.aroundCallback(args, probeData, function(obj, args, probeData) {
-          var httpReq = args[0];
-          var res = args[1];
-          // Filter out urls where filter.to is ''
-          var traceUrl = parse(httpReq.url);
-          // console.log(util.inspect(httpReq));
-          if (traceUrl !== '') {
-            const method = httpReq.method;
-            if (hasZipkinHeader(httpReq)) {
-              const headers = httpReq.headers;
-              var spanId = headers[(Header.SpanId).toLowerCase()];
-              if (spanId !== undefined) {
-                const traceId = new Some(headers[(Header.TraceId).toLowerCase()]);
-                const parentSpanId = new Some(headers[(Header.ParentSpanId).toLowerCase()]);
-                const sampled = new Some(headers[(Header.Sampled).toLowerCase()]);
-                const flags = (new Some(headers[(Header.Flags).toLowerCase()])).flatMap(stringToIntOption).getOrElse(0);
-                var id = new TraceId({
-                  traceId: traceId,
-                  parentId: parentSpanId,
-                  spanId: spanId,
-                  sampled: sampled.map(stringToBoolean),
-                  flags
-                });
-                tracer.setId(id);
+          namespace.run(() => {
+            var httpReq = args[0];
+            var res = args[1];
+            // Filter out urls where filter.to is ''
+            var traceUrl = parse(httpReq.url);
+            // console.log(util.inspect(httpReq));
+            if (traceUrl !== '') {
+              const method = httpReq.method;
+              if (hasZipkinHeader(httpReq)) {
+                const headers = httpReq.headers;
+                var spanId = headers[(Header.SpanId).toLowerCase()];
+                if (spanId !== undefined) {
+                  const traceId = new Some(headers[(Header.TraceId).toLowerCase()]);
+                  const parentSpanId = new Some(headers[(Header.ParentSpanId).toLowerCase()]);
+                  const sampled = new Some(headers[(Header.Sampled).toLowerCase()]);
+                  const flags = (new Some(
+                    headers[(Header.Flags).toLowerCase()])).flatMap(stringToIntOption).getOrElse(0);
+                  var id = new TraceId({
+                    traceId: traceId,
+                    parentId: parentSpanId,
+                    spanId: spanId,
+                    sampled: sampled.map(stringToBoolean),
+                    flags
+                  });
+                  tracer.setId(id);
+                  probeData.traceId = tracer.id;
+                };
+              } else {
+                tracer.setId(tracer.createRootId());
                 probeData.traceId = tracer.id;
-              };
-            } else {
-              tracer.setId(tracer.createRootId());
-              probeData.traceId = tracer.id;
-              // Must assign new options back to args[0]
-              const { headers } = Request.addZipkinHeaders(args[0], tracer.id);
-              Object.assign(args[0].headers, headers);
+                // store tracer in namespace
+                namespace.set('tracer-id', tracer.id);
+                // Must assign new options back to args[0]
+                const { headers } = Request.addZipkinHeaders(args[0], tracer.id);
+                Object.assign(args[0].headers, headers);
+              }
+
+              tracer.recordServiceName(serviceName);
+              tracer.recordRpc(method.toUpperCase());
+              tracer.recordBinary('http.url', httpReq.headers.host + traceUrl);
+              tracer.recordAnnotation(new Annotation.ServerRecv());
+              tracer.recordAnnotation(new Annotation.LocalAddr(0));
+
+              aspect.after(res, 'end', probeData, function(obj, methodName, args, probeData, ret) {
+                tracer.recordBinary('http.status_code', res.statusCode.toString());
+                tracer.recordAnnotation(new Annotation.ServerSend());
+              });
             }
-
-            tracer.recordServiceName(serviceName);
-            tracer.recordRpc(method.toUpperCase());
-            tracer.recordBinary('http.url', httpReq.headers.host + traceUrl);
-            tracer.recordAnnotation(new Annotation.ServerRecv());
-            tracer.recordAnnotation(new Annotation.LocalAddr(0));
-
-            aspect.after(res, 'end', probeData, function(obj, methodName, args, probeData, ret) {
-              tracer.recordBinary('http.status_code', res.statusCode.toString());
-              tracer.recordAnnotation(new Annotation.ServerSend());
-            });
-          }
+          });
         });
       });
   }
